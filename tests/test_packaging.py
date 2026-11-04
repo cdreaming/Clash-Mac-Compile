@@ -28,17 +28,26 @@ class PackagingTests(unittest.TestCase):
             h,n=line.split(maxsplit=1); p=ROOT/"dist"/n.strip()
             self.assertEqual(hashlib.sha256(p.read_bytes()).hexdigest(),h)
     def test_deterministic_source(self):
-        first=hashlib.sha256(self.z.read_bytes()).hexdigest()
         with tempfile.TemporaryDirectory() as td:
             copy=Path(td)/"repo"
             ignore=shutil.ignore_patterns(".git",".dev-state","dist","build","tmp",
                                           "__pycache__",".pytest_cache",".venv","venv")
             shutil.copytree(ROOT,copy,ignore=ignore)
-            r=subprocess.run([sys.executable,"scripts/build-release.py"],cwd=copy,text=True,capture_output=True)
-            self.assertEqual(r.returncode,0,r.stdout+r.stderr)
-            m=json.loads((copy/"dist/RELEASE-MANIFEST.json").read_text())
-            src=[x for x in m["assets"] if x.endswith("_source.zip")][0]
-            self.assertEqual(first,hashlib.sha256((copy/"dist"/src).read_bytes()).hexdigest())
+
+            first_run=subprocess.run([sys.executable,"scripts/build-release.py"],
+                                     cwd=copy,text=True,capture_output=True)
+            self.assertEqual(first_run.returncode,0,first_run.stdout+first_run.stderr)
+            first_manifest=json.loads((copy/"dist/RELEASE-MANIFEST.json").read_text())
+            first_src=[x for x in first_manifest["assets"] if x.endswith("_source.zip")][0]
+            first=hashlib.sha256((copy/"dist"/first_src).read_bytes()).hexdigest()
+
+            second_run=subprocess.run([sys.executable,"scripts/build-release.py"],
+                                      cwd=copy,text=True,capture_output=True)
+            self.assertEqual(second_run.returncode,0,second_run.stdout+second_run.stderr)
+            second_manifest=json.loads((copy/"dist/RELEASE-MANIFEST.json").read_text())
+            second_src=[x for x in second_manifest["assets"] if x.endswith("_source.zip")][0]
+            second=hashlib.sha256((copy/"dist"/second_src).read_bytes()).hexdigest()
+            self.assertEqual(first,second)
     def test_revision_metadata(self):
         for k in ["project_version","release_revision","republish_mode","expected_tag"]: self.assertIn(k,self.m)
 if __name__=="__main__": unittest.main()

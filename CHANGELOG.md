@@ -1,5 +1,13 @@
 # Version Changelog
 
+## v0.0.6
+
+- 移除 Apple Developer / Developer ID / Provisioning Profile / Apple Notary 相关脚本、Secrets 和 workflow steps。
+- Build、Release、Weekly 统一使用无签名 arm64 构建，无需 Apple Developer 账户。
+- APP ZIP 命名增加 `-unsigned`，构建元数据标记 `distribution_mode=unsigned`、`vpn_authorization_supported=false`。
+- GitHub Releases 正式上传无签名 APP、源码包、构建元数据、SHA-256 和明确的下载 / VPN 限制说明。
+- 保留 Swift `-O` 运行速度优先、arm64、Xcode 并行任务最多 2、每周上游检查和自动 Patch / Tag / Pre-release。
+
 ## v0.0.5
 
 - Release Swift 优化改为 `-O`，优先运行速度与交互流畅度；保留 arm64 与最多 2 个 Xcode 并行任务。

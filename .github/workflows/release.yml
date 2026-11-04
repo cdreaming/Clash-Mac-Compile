@@ -35,7 +35,7 @@ permissions:
 
 jobs:
   release:
-    name: Build and publish macOS release
+    name: Build and publish unsigned macOS release
     runs-on: xcode-27
     timeout-minutes: 240
 
@@ -111,7 +111,7 @@ jobs:
       - name: Build project source release
         run: python3 scripts/build-release.py
 
-      - name: Build native macOS app
+      - name: Build unsigned native macOS app
         env:
           CLASH_BUILD_JOBS: "2"
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"

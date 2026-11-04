@@ -57,7 +57,7 @@ jobs:
           fi
 
   build-and-release:
-    name: Build, tag and publish Weekly Preview
+    name: Build, tag and publish unsigned Weekly Preview
     needs: check-upstream
     if: needs.check-upstream.outputs.changed == 'true'
     runs-on: xcode-27
@@ -106,7 +106,7 @@ jobs:
           bash -n scripts/build-macos-app.sh
           python3 -m unittest -q tests.test_project
 
-      - name: Build native macOS app (runtime speed priority)
+      - name: Build unsigned native macOS app (runtime speed priority)
         env:
           CLASH_BUILD_JOBS: "2"
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"

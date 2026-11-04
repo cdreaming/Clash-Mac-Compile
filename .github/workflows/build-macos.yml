@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ClashmacOS (Apple Silicon arm64 · Runtime Speed)
+    name: Build ClashmacOS (Apple Silicon arm64 · Unsigned)
     runs-on: xcode-27
     timeout-minutes: 240
 
@@ -64,9 +64,9 @@ jobs:
       - name: Upload macOS app
         uses: actions/upload-artifact@v6
         with:
-          name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-${{ github.sha }}
+          name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-unsigned-${{ github.sha }}
           path: |
-            build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64.zip
+            build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-unsigned.zip
             build/ci/BUILD-METADATA.json
             build/ci/SHA256SUMS.txt
           if-no-files-found: error

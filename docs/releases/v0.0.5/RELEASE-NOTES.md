@@ -44,9 +44,7 @@
 
 源码包提供检查脚本：
 
-```bash
-bash scripts/inspect-macos-data.sh /Applications/Clash.app
-```
+v0.0.7 起已移除该签名 entitlement 检查脚本；无签名构建不保证 App Group 容器存在。
 
 脚本会读取实际 APP 的签名 entitlement，并检查容器是否存在。不要手动创建容器来替代签名配置，也不要直接编辑正在运行的活动配置文件。
 

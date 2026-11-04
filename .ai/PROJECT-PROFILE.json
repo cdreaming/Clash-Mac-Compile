@@ -12,7 +12,7 @@
     "simulation_configured": true,
     "commands": {
       "static": [
-        "python3 -m py_compile scripts/*.py tests/*.py && bash -n scripts/build-macos-app.sh && bash -n scripts/inspect-macos-data.sh && python3 scripts/check-build-config.py --release"
+        "python3 -m py_compile scripts/*.py tests/*.py && bash -n scripts/build-macos-app.sh && python3 scripts/check-build-config.py --release"
       ],
       "unit": [
         "python3 -m unittest -q tests.test_project"

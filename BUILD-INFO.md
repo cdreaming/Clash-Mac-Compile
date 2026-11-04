@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.5`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.6`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
@@ -14,7 +14,7 @@
 - Xcode 并行编译任务：最多 2
 - 目标架构：`arm64`（Apple Silicon only）
 - 架构检查：`lipo -archs`（兼容 Xcode 27）
-- 当前签名策略：无签名构建（`CODE_SIGNING_ALLOWED=NO`）
+- Build / Release / Weekly Preview：统一无签名构建（`CODE_SIGNING_ALLOWED=NO`）；不需要 Apple Developer Secrets；Packet Tunnel / VPN 系统授权不可用
 
 ## 构建入口
 
@@ -29,8 +29,11 @@
 
 ## 构建产物
 
-- `Clash_Mac_Compile-vX.Y.Z-macos-arm64.zip`
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`
 - `Clash_Mac_Compile_vX.Y.Z_source.zip`
 - `BUILD-METADATA.json`
+- ``（Release / Weekly Preview）
 
 GitHub Actions Artifact 默认保留 14 天。正式 Release 资产由 Release workflow 长期保存在 GitHub Release 中。
+
+## 无签名构建限制\n\n本项目不导入证书、不使用 provisioning profile、不调用 Apple Notary Service。无签名 APP 仅作为 macOS 编译产物分发；Network Extension / Packet Tunnel 的系统 VPN 授权不能保证成功。\n

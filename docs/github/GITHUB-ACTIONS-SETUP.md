@@ -2,7 +2,7 @@
 
 ## 首次上传
 
-1. 解压交付给你的 `Clash_Mac_Compile-vX.Y.Z-source.zip`。
+1. 解压交付给你的 `Clash_Mac_Compile_vX.Y.Z_source.zip`。
 2. 用 Sourcetree 添加解压目录为本地仓库。
 3. 将远端设为 `https://github.com/cdreaming/Clash-Mac-Compile.git`。
 4. 推送 `main` 分支。
@@ -21,7 +21,7 @@
 
 打开成功的 workflow run，在页面底部 Artifacts 下载：
 
-- `Clash_Mac_Compile-vX.Y.Z-macos-arm64.zip`
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`
 - `BUILD-METADATA.json`
 
 Artifact 默认保留 14 天。需要长期保存时，创建正式 Release。
@@ -40,7 +40,7 @@ v0.0.3 只生成 Apple Silicon arm64 APP。Xcode 并行任务数默认为 2，�
 
 ## Weekly Upstream Preview
 
-`.github/workflows/upstream-weekly.yml` 每周一 09:17（America/Los_Angeles）检查官方 Client `main`。没有变化时只运行轻量检查；发现新 SHA 后才启动 macOS Runner，自动提升 Patch 版本、构建 APP、提交 main、创建 tag 并发布 Pre-release。
+`.github/workflows/upstream-weekly.yml` 每周一 09:17（America/Los_Angeles）检查官方 Client `main`。没有变化时只运行轻量检查；发现新 SHA 后才启动 macOS Runner，自动提升 Patch 版本、构建无签名 APP、提交 main、创建 tag 并发布 Pre-release。
 
 手动运行：Actions → Weekly Upstream Check and Preview Release → Run workflow。`force_rebuild` 仅用于明确要求在上游 SHA 不变时重新构建并产生新 Patch 版本。
 
@@ -56,4 +56,12 @@ v0.0.3 只生成 Apple Silicon arm64 APP。Xcode 并行任务数默认为 2，�
 
 <https://github.com/cdreaming/Clash-Mac-Compile/releases>
 
-Release 说明区会解释 APP ZIP、源码 ZIP、构建元数据、SHA-256、架构、安装方式、配置目录和无签名限制。周度自动版本为 Pre-release；Stable 由维护者确认后发布。
+Release 说明区会解释无签名 APP ZIP、源码 ZIP、构建元数据、SHA-256、架构、安装方式、配置目录和 VPN 功能限制。周度自动版本为 Pre-release；Stable 由维护者确认后发布。
+
+
+
+## 无签名 Release 说明
+
+本项目不需要 Apple Developer Program、Developer ID 证书、Provisioning Profile 或 Notary API Key。Build、Release 和 Weekly Preview 都直接使用 `CODE_SIGNING_ALLOWED=NO`。
+
+Release 页面会上传无签名 APP ZIP、源码 ZIP、BUILD-METADATA、SHA-256 和下载说明。请注意，无签名版本不能保证 macOS VPN / Packet Tunnel 系统授权成功。

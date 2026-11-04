@@ -36,7 +36,10 @@ SWIFT_OPTIMIZATION_LEVEL="${CLASH_SWIFT_OPTIMIZATION_LEVEL:--O}"
 }
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || { echo "Invalid build number" >&2; exit 2; }
 [[ "$BUILD_JOBS" =~ ^[1-4]$ ]] || { echo "CLASH_BUILD_JOBS must be between 1 and 4" >&2; exit 2; }
-[[ "$SWIFT_OPTIMIZATION_LEVEL" == "-O" || "$SWIFT_OPTIMIZATION_LEVEL" == "-Osize" ]] || { echo "CLASH_SWIFT_OPTIMIZATION_LEVEL must be -O or -Osize" >&2; exit 2; }
+[[ "$SWIFT_OPTIMIZATION_LEVEL" == "-O" || "$SWIFT_OPTIMIZATION_LEVEL" == "-Osize" ]] || {
+  echo "CLASH_SWIFT_OPTIMIZATION_LEVEL must be -O or -Osize" >&2
+  exit 2
+}
 
 if [[ "$OUTPUT_DIR" != /* ]]; then OUTPUT_DIR="$ROOT/$OUTPUT_DIR"; fi
 mkdir -p "$OUTPUT_DIR"
@@ -61,6 +64,8 @@ echo "Build jobs: $BUILD_JOBS"
 echo "Swift optimization: $SWIFT_OPTIMIZATION_LEVEL"
 echo "Performance profile: runtime-speed-priority"
 echo "Target architecture: arm64 only"
+echo "Distribution: unsigned macOS app; VPN authorization is not supported by this build"
+
 echo "==> Xcode"
 xcodebuild -version
 echo "==> Go"
@@ -77,7 +82,7 @@ CLIENT_SHA="$(git -C "$CLIENT_DIR" rev-parse HEAD)"
 [[ "$CLIENT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Unable to resolve upstream Client SHA" >&2; exit 1; }
 
 if [[ "$CLIENT_SHA" != "$CLIENT_REF" ]]; then
-  echo "ERROR: fetched Client commit does not match the pinned UPSTREAM_CLIENT_REF" >&2
+  echo "ERROR: fetched Client commit does not match pinned UPSTREAM_CLIENT_REF" >&2
   echo "Expected: $CLIENT_REF" >&2
   echo "Actual:   $CLIENT_SHA" >&2
   exit 1
@@ -90,10 +95,12 @@ source "$CLIENT_DIR/.build/python-env/bin/activate"
 python3 -m pip install --disable-pip-version-check PyYAML
 python3 "$CLIENT_DIR/scripts/bootstrap.py"
 
-echo "==> Generate Xcode project and build the arm64 CLI helper"
-python3 "$CLIENT_DIR/scripts/configure.py" --bundle-base com.cdreaming.clash
+echo "==> Generate Xcode project and build arm64 CLI helper"
+python3 "$CLIENT_DIR/scripts/configure.py" \
+  --bundle-base com.cdreaming.clash \
+  --team ""
 
-echo "==> Build native macOS app (unsigned, arm64 only, limited parallelism)"
+echo "==> Build native macOS app (arm64, unsigned, runtime-speed priority)"
 xcodebuild \
   -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj" \
   -scheme ClashmacOS \
@@ -131,42 +138,43 @@ with open(sys.argv[1], "rb") as f:
     print(value)
 PY
 )"
-
-if [[ -z "$APP_EXECUTABLE" ]]; then
+[[ -n "$APP_EXECUTABLE" ]] || {
   echo "CFBundleExecutable is missing from $APP_PATH/Contents/Info.plist" >&2
   exit 1
-fi
+}
 
 APP_BINARY="$APP_PATH/Contents/MacOS/$APP_EXECUTABLE"
-if [[ ! -f "$APP_BINARY" ]]; then
+[[ -f "$APP_BINARY" ]] || {
   echo "APP executable does not exist: $APP_BINARY" >&2
-  echo "Contents/MacOS entries:" >&2
   ls -la "$APP_PATH/Contents/MacOS" >&2 || true
   exit 1
-fi
+}
 
-# Query the binary's architecture list using lipo's architecture-list mode,
-# then assert this build is arm64-only.
 ARCHS_FOUND="$(lipo -archs "$APP_BINARY")"
 echo "APP executable architectures: $ARCHS_FOUND"
-if [[ "$ARCHS_FOUND" != "arm64" ]]; then
+[[ "$ARCHS_FOUND" == "arm64" ]] || {
   echo "Expected an arm64-only APP executable, found: $ARCHS_FOUND" >&2
   exit 1
-fi
+}
 
-ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64.zip"
+ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64-unsigned.zip"
 ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
-python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" "$SWIFT_OPTIMIZATION_LEVEL" <<'PY'
+python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" \
+  "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" "$SWIFT_OPTIMIZATION_LEVEL" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
+
 root, client, client_sha, version, build_number, artifact, output, build_jobs, swift_optimization = sys.argv[1:]
+root = Path(root)
 client = Path(client)
 lock = json.loads((client / "Dependencies.lock.json").read_text(encoding="utf-8"))
+
 def cmd(*args):
     return subprocess.check_output(args, text=True).strip()
+
 metadata = {
     "project": "Clash_Mac_Compile",
     "project_version": version,
@@ -179,9 +187,16 @@ metadata = {
     "swift_optimization_level": swift_optimization,
     "performance_profile": "runtime-speed-priority",
     "signing": "disabled",
+    "team_id": None,
+    "distribution_mode": "unsigned",
+    "vpn_authorization_supported": False,
+    "limitations": [
+        "Unsigned build; macOS may require manual user approval to open.",
+        "Packet Tunnel / Network Extension VPN authorization is not supported without Apple Developer signing and provisioning."
+    ],
     "artifact": artifact,
     "client_repository": "https://github.com/ProjectClash/Clash-Client",
-    "client_requested_ref": (Path(root) / "UPSTREAM_CLIENT_REF").read_text().strip(),
+    "client_requested_ref": (root / "UPSTREAM_CLIENT_REF").read_text().strip(),
     "client_commit": client_sha,
     "kernel_repository": lock["kernel"]["repository"],
     "kernel_commit": lock["kernel"]["revision"],
@@ -206,3 +221,4 @@ echo "  APP: $ZIP_PATH"
 echo "  Metadata: $OUTPUT_DIR/BUILD-METADATA.json"
 echo "  Architecture: arm64"
 echo "  Signing: disabled"
+echo "  VPN authorization: unsupported in unsigned build"

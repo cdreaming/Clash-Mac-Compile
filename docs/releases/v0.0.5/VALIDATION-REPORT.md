@@ -12,7 +12,7 @@
 |---|---|
 | `python3 -m py_compile scripts/*.py tests/*.py` | PASS |
 | `bash -n scripts/build-macos-app.sh` | PASS |
-| `bash -n scripts/inspect-macos-data.sh` | PASS |
+| `bash -n scripts/inspect-macos-data.sh` | v0.0.5 当时通过；脚本在 v0.0.6 已移除 |
 | `python3 scripts/check-build-config.py` | PASS |
 | `python3 scripts/check-build-config.py --release` | PASS |
 | PyYAML 解析 CI / Build / Release / Weekly workflow | PASS，4 个 workflow |
