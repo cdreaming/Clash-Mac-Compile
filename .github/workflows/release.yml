@@ -1,0 +1,189 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '项目版本，例如 0.0.2'
+        required: true
+        type: string
+      override_governance:
+        description: '覆盖非安全关键治理阻止项'
+        default: false
+        type: boolean
+      override_quality_config:
+        description: '允许真实测试/simulation 尚未配置'
+        default: false
+        type: boolean
+      override_reason:
+        description: '任何 override 必须填写原因'
+        default: ''
+        type: string
+      force_republish:
+        description: '真正覆盖原 tag/Release'
+        default: false
+        type: boolean
+      force_confirmation:
+        description: 'force 时填写 FORCE-REPUBLISH-vX.Y.Z'
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish macOS release
+    runs-on: xcode-27
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+
+      - name: Resolve release state
+        id: state
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          FORCE_REPUBLISH: ${{ inputs.force_republish }}
+          FORCE_CONFIRMATION: ${{ inputs.force_confirmation }}
+        run: |
+          set -Eeuo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          REVISION="$(tr -d '[:space:]' < RELEASE_REVISION)"
+          CHECKLIST="docs/releases/v${VERSION}/RELEASE-CHECKLIST.md"
+          MODE="$(sed -n 's/.*REPUBLISH-MODE:[[:space:]]*\([^ >]*\).*/\1/p' "$CHECKLIST" | head -1)"
+          MODE="${MODE:-none}"
+          if [[ "$MODE" == "revision" && "$REVISION" -gt 0 ]]; then TAG="v${VERSION}-r${REVISION}"; else TAG="v${VERSION}"; fi
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            [[ "$MODE" != "force-overwrite" ]] || { echo "force-overwrite 只能手工 workflow_dispatch" >&2; exit 1; }
+            [[ "$GITHUB_REF_NAME" == "$TAG" ]] || { echo "tag 与 VERSION/RELEASE_REVISION 不一致" >&2; exit 1; }
+          else
+            [[ "${INPUT_VERSION#v}" == "$VERSION" ]] || { echo "输入版本与 VERSION 不一致" >&2; exit 1; }
+            if [[ "$MODE" == "force-overwrite" ]]; then
+              [[ "$FORCE_REPUBLISH" == "true" ]] || exit 1
+              [[ "$FORCE_CONFIRMATION" == "FORCE-REPUBLISH-v${VERSION}" ]] || { echo "force confirmation 不匹配" >&2; exit 1; }
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Require immutable upstream Client revision
+        run: python3 scripts/check-build-config.py --release
+
+      - name: Release quality gates
+        shell: bash
+        env:
+          OG: ${{ inputs.override_governance }}
+          OQ: ${{ inputs.override_quality_config }}
+          OR: ${{ inputs.override_reason }}
+        run: |
+          set -Eeuo pipefail
+          ARGS=(--scope release)
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$OG" == "true" ]]; then ARGS+=(--override-governance --override-reason "$OR"); fi
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$OQ" == "true" ]]; then ARGS+=(--override-quality-config --override-reason "$OR"); fi
+          python3 scripts/run-quality-gates.py "${ARGS[@]}"
+
+      - name: Build project source release
+        run: python3 scripts/build-release.py
+
+      - name: Build native macOS app
+        run: bash scripts/build-macos-app.sh --output build/release
+
+      - name: Attach macOS app and build metadata
+        run: |
+          python3 scripts/attach-release-assets.py \
+            --dist dist \
+            --source build/release \
+            --version "${{ steps.state.outputs.version }}"
+
+      - name: Verify release package
+        run: python3 -m unittest -q tests.test_packaging
+
+      - name: Handle existing release / force tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.state.outputs.tag }}
+          MODE: ${{ steps.state.outputs.mode }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$MODE" == "force-overwrite" ]]; then
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
+            fi
+            git tag -f "$TAG" "$GITHUB_SHA"
+            git push --force origin "refs/tags/$TAG"
+          elif gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "同名 Release 已存在。请使用 revision 或用户明确 force-overwrite。" >&2
+            exit 1
+          fi
+
+      - name: Create draft and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.state.outputs.version }}
+          TAG: ${{ steps.state.outputs.tag }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$TAG" \
+            --notes-file "docs/releases/v${VERSION}/RELEASE-NOTES.md"
+          python3 - <<'PY' > /tmp/assets.txt
+          import json
+          for name in json.load(open("dist/RELEASE-MANIFEST.json"))["assets"]:
+              print(name)
+          PY
+          while IFS= read -r asset; do
+            gh release upload "$TAG" "dist/$asset" --repo "$GITHUB_REPOSITORY"
+          done < /tmp/assets.txt
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.state.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+      - name: Verify online
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.state.outputs.version }}
+          TAG: ${{ steps.state.outputs.tag }}
+        run: bash scripts/verify-github-release.sh "$VERSION" "$TAG"
+
+      - name: Archive evidence
+        env:
+          VERSION: ${{ steps.state.outputs.version }}
+          TAG: ${{ steps.state.outputs.tag }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+          python3 scripts/finalize-release-archive.py \
+            --release-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
+            --release-tag "$TAG" --tag-commit "$TAG_COMMIT" \
+            --actions-run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --asset-sha256-verified --online-assets-verified --write

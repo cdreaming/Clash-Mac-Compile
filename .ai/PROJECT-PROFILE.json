@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "project_name": "Clash_Mac_Compile",
+  "project_slug": "clash-mac-compile",
+  "repository": "cdreaming/Clash-Mac-Compile",
+  "default_branch": "main",
+  "project_type": "macos-native-app-build-pipeline",
+  "document_language": "zh-CN",
+  "filename_policy": "english-ascii",
+  "quality": {
+    "project_tests_configured": true,
+    "simulation_configured": true,
+    "commands": {
+      "static": [
+        "python3 -m py_compile scripts/*.py tests/*.py && bash -n scripts/build-macos-app.sh && python3 scripts/check-build-config.py && python3 scripts/update-repository-structure.py --check && python3 scripts/build-source-manifest.py --check"
+      ],
+      "unit": [
+        "python3 -m unittest -q tests.test_project"
+      ],
+      "integration": [],
+      "smoke": [],
+      "security": [],
+      "simulation": [
+        "python3 scripts/check-build-config.py"
+      ]
+    }
+  },
+  "release": {
+    "tag_prefix": "v",
+    "installer_required": false,
+    "installer_assets": [],
+    "extra_assets": [],
+    "public_anonymous_probe_asset": "",
+    "build_commands": [],
+    "republish": {
+      "preferred_mode": "revision",
+      "revision_enabled": true,
+      "force_overwrite_enabled": true
+    },
+    "macos_dual_implementation": {
+      "enabled": false,
+      "manual_approval_before_github_release": false,
+      "preview_variant": "GoWebUI",
+      "preview_delivery": {
+        "source_required": true,
+        "portable_installer_required": true,
+        "portable_build_command": "",
+        "portable_asset": "",
+        "shared_app_builder": "",
+        "toolchain_version": ""
+      },
+      "release_lock": {
+        "required": true,
+        "path": "",
+        "check_command": ""
+      },
+      "github_pkg_variants": [
+        {
+          "name": "GoWebUI",
+          "build_command": "",
+          "asset_pattern": "*-GoWebUI-*.pkg"
+        },
+        {
+          "name": "SwiftUI",
+          "build_command": "",
+          "asset_pattern": "*-SwiftUI-*.pkg"
+        }
+      ]
+    }
+  }
+}

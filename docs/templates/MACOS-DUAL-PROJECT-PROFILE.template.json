@@ -1,0 +1,34 @@
+{
+  "release": {
+    "macos_dual_implementation": {
+      "enabled": true,
+      "manual_approval_before_github_release": false,
+      "preview_variant": "GoWebUI",
+      "preview_delivery": {
+        "source_required": true,
+        "portable_installer_required": true,
+        "portable_build_command": "bash scripts/build-portable-installer.sh",
+        "portable_asset": "dist-portable/PROJECT-vX.Y.Z-GoWebUI-arm64-portable-installer.zip",
+        "shared_app_builder": "scripts/build-gowebui-app.sh",
+        "toolchain_version": "go1.23.2"
+      },
+      "release_lock": {
+        "required": true,
+        "path": "GoWebUI-RELEASE-LOCK.json",
+        "check_command": "python3 scripts/build-gowebui-release-lock.py --check"
+      },
+      "github_pkg_variants": [
+        {
+          "name": "GoWebUI",
+          "build_command": "bash scripts/build-gowebui-release.sh --unsigned",
+          "asset_pattern": "*-GoWebUI-arm64.pkg"
+        },
+        {
+          "name": "SwiftUI",
+          "build_command": "bash scripts/build-swiftui-release.sh --unsigned",
+          "asset_pattern": "*-SwiftUI-arm64.pkg"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+name: Project Quality Gate
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  quality-gate:
+    name: Project Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Development quality gate
+        run: python3 scripts/run-quality-gates.py --scope development
+      - name: Repository structure advisory
+        continue-on-error: true
+        run: python3 scripts/update-repository-structure.py --check
+      - name: Source manifest advisory
+        continue-on-error: true
+        run: python3 scripts/build-source-manifest.py --check
+
+      - name: Template governance regression
+        run: python3 -m unittest -q tests.test_governance

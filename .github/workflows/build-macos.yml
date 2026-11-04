@@ -1,0 +1,73 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ClashmacOS (Universal)
+    runs-on: xcode-27
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout build project
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+
+      - name: Check toolchain and project configuration
+        run: |
+          xcodebuild -version
+          go version
+          python3 --version
+          xcodegen --version
+          python3 scripts/check-build-config.py
+
+      - name: Build native macOS app
+        run: |
+          bash scripts/build-macos-app.sh --output build/ci
+
+      - name: Resolve artifact name
+        id: version
+        shell: bash
+        run: |
+          echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-universal-${{ github.sha }}
+          path: |
+            build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-universal.zip
+            build/ci/BUILD-METADATA.json
+            build/ci/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
