@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.3`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.4`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
@@ -11,8 +11,8 @@
 - Xcode Scheme：`ClashmacOS`
 - 构建配置：Release
 - Xcode 并行编译任务：最多 2；Target 级并行关闭
-- Xcode 并行任务：最多 2；Target 级并行构建关闭
 - 目标架构：`arm64`（Apple Silicon only）
+- 架构检查：`lipo -archs`（兼容 Xcode 27）
 - 初始签名策略：无签名构建（`CODE_SIGNING_ALLOWED=NO`）
 
 ## 构建入口

@@ -45,7 +45,8 @@
 `│   │   ├── TEMPLATE.md` — 发布经验标准模板；定义目标、事故、根因、决策、防回归、验证和遗留边界。
 `│   │   ├── v0.0.1.md` — 当前版本发布经验；记录风险、根因、决策和防回归规则。
 `│   │   ├── v0.0.2.md` — v0.0.2 发布经验；将 main 可移动引用造成的 Release 阻断转化为 SHA 防回归规则。
-`│   │   └── v0.0.3.md` — v0.0.3 发布经验；将 arm64-only、有限并行和取消策略形成防回归规则。
+`│   │   ├── v0.0.3.md` — v0.0.3 发布经验；将 arm64-only、有限并行和取消策略形成防回归规则。
+`│   │   └── v0.0.4.md` — v0.0.4 发布经验；将 Xcode 27 lipo 参数兼容性转化为回归检查。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -65,6 +66,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.3 发布经验；分析 SwiftCompile 被取消并记录资源优化策略。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.0.3 发布说明；描述 Apple Silicon arm64 构建、并行任务限制和工作流取消策略调整。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.0.3 验证报告；区分本地配置测试与未执行的 GitHub 云端构建。
+`│   │   ├── v0.0.4/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.4 开发日志；记录 Xcode 27 lipo 后置检查修复。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — v0.0.4 发布检查表；记录本地验证和待执行的云端构建证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.4 发布经验报告；记录 Xcode Build 成功但后置 lipo 检查失败的根因。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.0.4 发布说明；说明 lipo 架构检查改用 lipo -archs。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.0.4 验证报告；区分本地测试与待执行的 GitHub macOS Runner 构建。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -82,13 +89,13 @@
 `│   │   └── VALIDATION-REPORT.template.md` — 真实验证报告模板；记录环境、命令、结果、故障注入和发布结论。
 `│   └── REPOSITORY-STRUCTURE.md` — 自动生成的仓库目录树；逐个文件夹和文件写明职责，并由 CI 校验不漂移。
 `├── scripts/` — 项目治理和 macOS 原生 APP 自动构建、配置校验、Release 资产脚本。
-`│   ├── attach-release-assets.py` — 将 macOS arm64 APP ZIP 与构建元数据并入 Release manifest 和 SHA-256。
+`│   ├── attach-release-assets.py` — 将 arm64 APP ZIP 与构建元数据并入 Release manifest 和 SHA-256。
 `│   ├── bootstrap-project.py` — 把通用模板初始化为具体项目；重置项目历史并强制真实业务测试/simulation 重新配置。
 `│   ├── build-ai-handoff.py` — AI 唯一正式收尾入口；完成开发状态、candidate gate、Release build 并导出三类交接包。
-`│   ├── build-macos-app.sh` — macOS 构建脚本；仅构建 arm64，Xcode 并行任务最多 2，记录 Runner 资源并校验 APP 架构。
+`│   ├── build-macos-app.sh` — 在 macOS Runner 构建官方 ClashmacOS arm64 APP；检查 CFBundleExecutable，使用 lipo -archs 验证 arm64 后打包。
 `│   ├── build-release.py` — 确定性 Release 构建器；生成项目源码 ZIP、验证报告、可选安装资产、manifest 和 SHA-256。
 `│   ├── build-source-manifest.py` — 生成/校验源码 SHA-256 清单；拒绝 symlink 和 Secret 进入受管源码集合。
-`│   ├── check-build-config.py` — 校验上游 SHA、arm64-only 构建策略、并行任务限制、无自动取消及 Actions Artifact 配置。
+`│   ├── check-build-config.py` — 校验项目身份、上游 SHA、arm64-only 构建策略、Xcode 27 兼容架构检查和 GitHub Actions 工作流。
 `│   ├── check-governance.py` — development/candidate/release/archive 四级治理门禁；验证结构、文档、状态和远端证据语义。
 `│   ├── dev-safe-run.py` — 高风险长任务安全执行器；提供 heartbeat、hard timeout、持久日志和退出状态。
 `│   ├── dev-session.py` — 版本开发会话状态机；支持 start、checkpoint、status、complete 和归档版本防重开。
@@ -103,14 +110,14 @@
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
 `│   ├── test_governance.py` — 治理回归与故障注入测试；验证 hook、结构、ASCII 命名、测试开关和未登记文件拦截。
 `│   ├── test_packaging.py` — 打包回归测试；验证 ZIP CRC/权限、Secret 排除、资产集合、SHA-256 和确定性源码包。
-`│   └── test_project.py` — 项目配置、arm64 构建契约、Release 上游 SHA 限制和资产清单的单元测试。
+`│   └── test_project.py` — 项目配置、arm64-only 构建策略、Xcode 27 lipo 兼容检查、Release SHA 和资产清单单元测试。
 `├── .editorconfig` — 统一 UTF-8、LF、末尾换行和空白规则，减少跨编辑器/跨平台无意义 Diff。
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。
 `├── AGENTS.md` — 仓库级 AI 规则与 Clash_Mac_Compile 专属上游、签名和验证约束。
-`├── BUILD-INFO.md` — 项目版本、上游源码引用、Xcode Scheme、arm64 架构和构建产物说明。
-`├── CHANGELOG.md` — 按项目版本记录构建系统和功能变化。
-`├── README.md` — 项目说明、arm64-only GitHub Actions 构建、Sourcetree 上传、版本和签名限制。
+`├── BUILD-INFO.md` — v0.0.4 项目版本、上游源码 SHA、Go/Xcode 配置、arm64 架构和 lipo 检查策略。
+`├── CHANGELOG.md` — 按版本记录构建系统变化；v0.0.4 修复 Xcode 27 lipo 架构检查。
+`├── README.md` — 项目说明、GitHub Actions 自动编译流程、arm64 单架构策略、Xcode 27 lipo 检查说明和 Sourcetree 上传步骤。
 `├── RELEASE_REVISION` — 同一项目 VERSION 的发布修订号；0 为原始发布，1/2… 对应 r1/r2 受控重发审计序号。
 `├── SECURITY.md` — Secret、Apple 签名材料、上游锁定与 GitHub Actions 安全策略。
 `├── SHA256SUMS.txt` — 仓库源码 SHA-256 清单；用于发现 AI 交接、结构更新或打包前的源码漂移。

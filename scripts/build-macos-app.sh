@@ -120,10 +120,34 @@ fi
 APP_EXECUTABLE="$(python3 - "$APP_PATH/Contents/Info.plist" <<'PY'
 import plistlib, sys
 with open(sys.argv[1], "rb") as f:
-    print(plistlib.load(f)["CFBundleExecutable"])
+    value = plistlib.load(f).get("CFBundleExecutable", "")
+    if not isinstance(value, str):
+        value = ""
+    print(value)
 PY
 )"
-lipo -verify_arch arm64 "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE"
+
+if [[ -z "$APP_EXECUTABLE" ]]; then
+  echo "CFBundleExecutable is missing from $APP_PATH/Contents/Info.plist" >&2
+  exit 1
+fi
+
+APP_BINARY="$APP_PATH/Contents/MacOS/$APP_EXECUTABLE"
+if [[ ! -f "$APP_BINARY" ]]; then
+  echo "APP executable does not exist: $APP_BINARY" >&2
+  echo "Contents/MacOS entries:" >&2
+  ls -la "$APP_PATH/Contents/MacOS" >&2 || true
+  exit 1
+fi
+
+# Query the binary's architecture list using lipo's architecture-list mode,
+# then assert this build is arm64-only.
+ARCHS_FOUND="$(lipo -archs "$APP_BINARY")"
+echo "APP executable architectures: $ARCHS_FOUND"
+if [[ "$ARCHS_FOUND" != "arm64" ]]; then
+  echo "Expected an arm64-only APP executable, found: $ARCHS_FOUND" >&2
+  exit 1
+fi
 
 ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64.zip"
 ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"

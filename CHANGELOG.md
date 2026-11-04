@@ -1,5 +1,13 @@
 # Version Changelog
 
+## v0.0.4
+
+- 修复 Xcode 27 的 `lipo -verify_arch` 参数顺序不兼容问题。
+- 改用 `lipo -archs <APP executable>` 获取架构列表，并明确验证结果仅为 `arm64`。
+- 增加 Info.plist 主执行文件名称、执行文件路径和文件存在性检查。
+- 修正 Release 资产名称及测试夹具，保持 `macos-arm64` 一致。
+- Release 工作流同步设置 `CLASH_BUILD_JOBS=2`，与普通 Build 工作流保持一致。
+
 ## v0.0.3
 
 - 将 macOS 构建目标收敛为 Apple Silicon `arm64`，暂不构建 Intel `x86_64`。

@@ -48,12 +48,14 @@ def main() -> int:
         "ARCHS=arm64",
         "ONLY_ACTIVE_ARCH=YES",
         '-jobs "$BUILD_JOBS"',
-        "lipo -verify_arch arm64",
+        "lipo -archs",
         "CLASH_BUILD_JOBS",
     )
     for token in required_script_tokens:
         if token not in script_text:
             raise RuntimeError(f"Build script is missing required step: {token}")
+    if "lipo -verify_arch" in script_text:
+        raise RuntimeError("Do not use the legacy lipo -verify_arch argument order with Xcode 27")
     if "x86_64" in script_text:
         raise RuntimeError("This version must build Apple Silicon arm64 only")
 
