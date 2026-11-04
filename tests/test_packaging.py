@@ -1,14 +1,16 @@
 from __future__ import annotations
-import hashlib,json,subprocess,sys,unittest,zipfile
+import hashlib,json,subprocess,sys,unittest,zipfile,shutil,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 class PackagingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        r=subprocess.run([sys.executable,"scripts/build-release.py"],cwd=ROOT,text=True,capture_output=True)
-        if r.returncode: raise AssertionError(r.stdout+r.stderr)
-        cls.m=json.loads((ROOT/"dist/RELEASE-MANIFEST.json").read_text())
-        src=[x for x in cls.m["assets"] if x.endswith("-source.zip")]
+        manifest_path = ROOT / "dist/RELEASE-MANIFEST.json"
+        if not manifest_path.is_file():
+            r=subprocess.run([sys.executable,"scripts/build-release.py"],cwd=ROOT,text=True,capture_output=True)
+            if r.returncode: raise AssertionError(r.stdout+r.stderr)
+        cls.m=json.loads(manifest_path.read_text())
+        src=[x for x in cls.m["assets"] if x.endswith("_source.zip")]
         if len(src)!=1: raise AssertionError(src)
         cls.z=ROOT/"dist"/src[0]
     def test_zip_integrity(self):
@@ -27,10 +29,16 @@ class PackagingTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(p.read_bytes()).hexdigest(),h)
     def test_deterministic_source(self):
         first=hashlib.sha256(self.z.read_bytes()).hexdigest()
-        r=subprocess.run([sys.executable,"scripts/build-release.py"],cwd=ROOT,text=True,capture_output=True)
-        self.assertEqual(r.returncode,0,r.stdout+r.stderr)
-        m=json.loads((ROOT/"dist/RELEASE-MANIFEST.json").read_text()); src=[x for x in m["assets"] if x.endswith("-source.zip")][0]
-        self.assertEqual(first,hashlib.sha256((ROOT/"dist"/src).read_bytes()).hexdigest())
+        with tempfile.TemporaryDirectory() as td:
+            copy=Path(td)/"repo"
+            ignore=shutil.ignore_patterns(".git",".dev-state","dist","build","tmp",
+                                          "__pycache__",".pytest_cache",".venv","venv")
+            shutil.copytree(ROOT,copy,ignore=ignore)
+            r=subprocess.run([sys.executable,"scripts/build-release.py"],cwd=copy,text=True,capture_output=True)
+            self.assertEqual(r.returncode,0,r.stdout+r.stderr)
+            m=json.loads((copy/"dist/RELEASE-MANIFEST.json").read_text())
+            src=[x for x in m["assets"] if x.endswith("_source.zip")][0]
+            self.assertEqual(first,hashlib.sha256((copy/"dist"/src).read_bytes()).hexdigest())
     def test_revision_metadata(self):
         for k in ["project_version","release_revision","republish_mode","expected_tag"]: self.assertIn(k,self.m)
 if __name__=="__main__": unittest.main()

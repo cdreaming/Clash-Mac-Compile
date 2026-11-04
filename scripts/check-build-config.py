@@ -50,6 +50,7 @@ def main() -> int:
         '-jobs "$BUILD_JOBS"',
         "lipo -archs",
         "CLASH_BUILD_JOBS",
+        'SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL"',
     )
     for token in required_script_tokens:
         if token not in script_text:
@@ -70,8 +71,21 @@ def main() -> int:
         raise RuntimeError("Build workflow timeout must be 240 minutes")
     if 'CLASH_BUILD_JOBS: "2"' not in workflow_text:
         raise RuntimeError("Build workflow must limit Xcode parallel jobs to 2")
-    if "actions/upload-artifact@" not in workflow_text:
-        raise RuntimeError("Build workflow must upload its build artifact")
+    if "actions/upload-artifact@v6" not in workflow_text:
+        raise RuntimeError("Build workflow must use Node 24-compatible upload-artifact v6")
+    if 'CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"' not in workflow_text:
+        raise RuntimeError("Build workflow must prioritize Swift runtime-speed optimization")
+    if "actions/setup-python@v7" not in workflow_text or "actions/setup-go@v7" not in workflow_text:
+        raise RuntimeError("Build workflow must use current Node 24-compatible setup actions")
+
+    if not (ROOT / ".github/workflows/upstream-weekly.yml").is_file():
+        raise RuntimeError("Weekly upstream workflow is missing")
+    weekly_text = (ROOT / ".github/workflows/upstream-weekly.yml").read_text(encoding="utf-8")
+    for required in ('schedule:', 'timezone: "America/Los_Angeles"', 'contents: write',
+                     'scripts/prepare-weekly-upstream-release.py', '--prerelease',
+                     'scripts/verify-github-release.sh'):
+        if required not in weekly_text:
+            raise RuntimeError(f"Weekly upstream workflow is missing required feature: {required}")
 
     release_text = release_workflow.read_text(encoding="utf-8")
     if "scripts/check-build-config.py --release" not in release_text:

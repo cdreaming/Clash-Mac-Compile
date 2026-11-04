@@ -6,14 +6,15 @@
 
 `├── .ai/` — AI 机器可读治理层；保存开工入口、项目配置、模板导出清单和仓库职责目录。
 `│   ├── AI-START-HERE.md` — AI 每轮开工、上游版本锁定、验证和收尾入口。
-`│   ├── PROJECT-PROFILE.json` — 项目身份、质量门禁、arm64-only 测试命令和 Release 配置。
+`│   ├── PROJECT-PROFILE.json` — 项目质量门禁配置；包含 Release SHA、Python/Shell 静态检查和项目单元测试命令。
 `│   ├── REPOSITORY-CATALOG.json` — 逐目录/逐文件职责机器目录；是自动生成 Repository Structure 的说明事实源。
 `│   └── TEMPLATE-MANIFEST.json` — 通用治理模板导出清单；排除 Clash_Mac_Compile 项目专属配置。
 `├── .github/` — GitHub 仓库自动化与协作配置；保存 AI 指令、PR 模板和 Actions 工作流。
 `│   ├── workflows/` — GitHub Actions 工作流；分别执行通用质量门禁、macOS APP 自动构建和正式 Release。
-`│   │   ├── build-macos.yml` — Push/PR/手动触发的 macOS arm64 低并行度构建工作流，不自动取消运行中任务。
+`│   │   ├── build-macos.yml` — Push/PR/手动触发的 arm64 Swift -O 运行速度优先构建和 Artifact 上传工作流。
 `│   │   ├── ci.yml` — main Push/PR 的通用质量门禁，并运行模板治理回归测试。
-`│   │   └── release.yml` — 固定上游 commit 后执行 macOS arm64 APP 构建、Release 资产生成和线上验证。
+`│   │   ├── release.yml` — 正式 tag Release：质量门禁、arm64 Swift -O 构建、Release 下载说明、资产上传与线上校验。
+`│   │   └── upstream-weekly.yml` — 每周检查 ProjectClash Client main；有新 SHA 时自动递增 Patch、编译 APP、提交、创建 tag 和 GitHub Pre-release。
 `│   ├── copilot-instructions.md` — GitHub Copilot 的项目专属开发规则。
 `│   └── pull_request_template.md` — PR 检查模板；要求标记风险等级、真实验证和经验沉淀。
 `├── docs/` — 长期文档根目录；保存架构、开发规则、GitHub 说明、Release 规则、版本归档和模板。
@@ -33,9 +34,14 @@
 `│   │   ├── TEMPLATE-EVOLUTION.md` — 通用治理经验如何跨项目沉淀、何时提升 TEMPLATE_VERSION 的规则。
 `│   │   └── UPSTREAM-BUILD.md` — ProjectClash 三仓职责、官方 bootstrap/configure、Go 工具链和 arm64 构建说明。
 `│   ├── github/` — GitHub Actions、Sourcetree 上传、Artifact 下载与费用说明。
-`│   │   ├── GITHUB-ACTIONS-SETUP.md` — Sourcetree 上传、arm64 Artifact 下载、GitHub Actions 和 Release 步骤。
+`│   │   ├── GITHUB-ACTIONS-SETUP.md` — Sourcetree 上传、GitHub Actions 构建、每周上游自动发布、权限和 Releases 下载说明。
 `│   │   ├── PRIVATE-REPOSITORY-SETUP.md` — 私有 GitHub 仓库创建、Sourcetree 初始化、gh/PAT 认证下载和凭据安全说明。
+`│   │   ├── RELEASE-DOWNLOAD-GUIDE.md` — GitHub Releases 资产说明、安装步骤、配置目录、签名限制和 Weekly Preview / Stable 区别。
 `│   │   └── REPOSITORY-RULESETS.md` — 单人 direct-push 与团队 PR 两种仓库保护策略，以及 tag/Action/immutable release 建议。
+`│   ├── macos/` — macOS App Group 容器、配置文件路径和安装后数据检查说明。
+`│   │   └── CONFIGURATION-DIRECTORIES.md` — 说明预期 App Group 配置目录、无签名构建限制和自动检查方法。
+`│   ├── performance/` — 运行速度优先的编译策略、Instruments 与 Go pprof 性能基准指南。
+`│   │   └── PERFORMANCE-STRATEGY.md` — 运行速度优先的 Swift -O 编译策略及 Instruments / Go pprof 性能测试方法。
 `│   ├── release/` — 跨版本 Release 治理；保存生命周期、操作步骤和发布知识库。
 `│   │   ├── RELEASE-KNOWLEDGE-BASE.md` — Release Lesson 与 Experience Report 的沉淀规则；把发布事故转成自动防回归资产。
 `│   │   ├── RELEASE-LIFECYCLE.md` — 版本开发、候选、正式发布、归档、supersede 的机器状态与生命周期规则。
@@ -46,7 +52,8 @@
 `│   │   ├── v0.0.1.md` — 当前版本发布经验；记录风险、根因、决策和防回归规则。
 `│   │   ├── v0.0.2.md` — v0.0.2 发布经验；将 main 可移动引用造成的 Release 阻断转化为 SHA 防回归规则。
 `│   │   ├── v0.0.3.md` — v0.0.3 发布经验；将 arm64-only、有限并行和取消策略形成防回归规则。
-`│   │   └── v0.0.4.md` — v0.0.4 发布经验；将 Xcode 27 lipo 参数兼容性转化为回归检查。
+`│   │   ├── v0.0.4.md` — v0.0.4 发布经验；将 Xcode 27 lipo 参数兼容性转化为回归检查。
+`│   │   └── v0.0.5.md` — 当前版本发布经验；把事故根因转成可执行防回归规则。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -72,6 +79,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.4 发布经验报告；记录 Xcode Build 成功但后置 lipo 检查失败的根因。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.0.4 发布说明；说明 lipo 架构检查改用 lipo -archs。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.0.4 验证报告；区分本地测试与待执行的 GitHub macOS Runner 构建。
+`│   │   ├── v0.0.5/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.5 开发日志；记录运行速度优先、配置诊断、每周上游发布和 Releases 下载说明。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — v0.0.5 发布检查表；记录本地源码检查和待执行的 GitHub 云端构建 / 发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.5 发布经验报告；记录性能优先构建、每周自动 Preview 和下载页说明策略。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.0.5 GitHub Release 下载说明；列出 APP、源码、构建元数据、安装、配置目录、性能与周度 Preview 说明。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.0.5 本地真实验证报告；区分已通过的静态、项目、打包测试与未执行的云端构建。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -92,16 +105,18 @@
 `│   ├── attach-release-assets.py` — 将 arm64 APP ZIP 与构建元数据并入 Release manifest 和 SHA-256。
 `│   ├── bootstrap-project.py` — 把通用模板初始化为具体项目；重置项目历史并强制真实业务测试/simulation 重新配置。
 `│   ├── build-ai-handoff.py` — AI 唯一正式收尾入口；完成开发状态、candidate gate、Release build 并导出三类交接包。
-`│   ├── build-macos-app.sh` — 在 macOS Runner 构建官方 ClashmacOS arm64 APP；检查 CFBundleExecutable，使用 lipo -archs 验证 arm64 后打包。
-`│   ├── build-release.py` — 确定性 Release 构建器；生成项目源码 ZIP、验证报告、可选安装资产、manifest 和 SHA-256。
+`│   ├── build-macos-app.sh` — 在 macOS Runner 构建 arm64 Clash.app；Swift 使用 -O 运行速度优先，限制 Xcode 并行任务，并记录性能配置元数据。
+`│   ├── build-release.py` — 生成符合 Clash_Mac_Compile_vX.Y.Z_source.zip 命名规则的完整源码包、Release manifest 和 SHA-256。
 `│   ├── build-source-manifest.py` — 生成/校验源码 SHA-256 清单；拒绝 symlink 和 Secret 进入受管源码集合。
-`│   ├── check-build-config.py` — 校验项目身份、上游 SHA、arm64-only 构建策略、Xcode 27 兼容架构检查和 GitHub Actions 工作流。
+`│   ├── check-build-config.py` — 校验上游 SHA、arm64 构建、Swift -O 性能设置、Xcode 27 lipo 检查和周度自动发布工作流。
 `│   ├── check-governance.py` — development/candidate/release/archive 四级治理门禁；验证结构、文档、状态和远端证据语义。
 `│   ├── dev-safe-run.py` — 高风险长任务安全执行器；提供 heartbeat、hard timeout、持久日志和退出状态。
 `│   ├── dev-session.py` — 版本开发会话状态机；支持 start、checkpoint、status、complete 和归档版本防重开。
 `│   ├── finalize-release-archive.py` — 仅用真实 GitHub URL、tag commit、Actions 与线上验证结果把 Release 归档标记为 complete。
+`│   ├── inspect-macos-data.sh` — 读取已安装 Clash.app 的签名 App Groups entitlement，并检查真实 Group Container 和配置文件。
 `│   ├── prepare-republish.py` — 重新打开已发布版本；保存旧 Release 证据并准备 revision 或 force-overwrite。
 `│   ├── prepare-version.py` — 创建下一项目版本；生成全套版本文档、可选深度升级计划并同步结构/manifest。
+`│   ├── prepare-weekly-upstream-release.py` — 为新的上游 Client SHA 自动生成下一个 Patch 版本、Release 说明、开发记录并更新源码索引。
 `│   ├── run-quality-gates.py` — 统一质量门禁执行器；串行运行治理、静态、单元、集成、smoke、安全和模拟。
 `│   ├── run-simulated-environment.py` — 建立没有 Git/缓存/Secret 的 clean-room 临时工作区并运行真实项目 simulation。
 `│   ├── set-release-disposition.py` — 把未正式发布的旧版本按事实标记为 superseded/abandoned/failed，不阻塞后续开发。
@@ -109,8 +124,8 @@
 `│   └── verify-github-release.sh` — GitHub Release 后置验证；认证下载线上资产并检查集合、SHA-256、Release Notes 和可选匿名探针。
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
 `│   ├── test_governance.py` — 治理回归与故障注入测试；验证 hook、结构、ASCII 命名、测试开关和未登记文件拦截。
-`│   ├── test_packaging.py` — 打包回归测试；验证 ZIP CRC/权限、Secret 排除、资产集合、SHA-256 和确定性源码包。
-`│   └── test_project.py` — 项目配置、arm64-only 构建策略、Xcode 27 lipo 兼容检查、Release SHA 和资产清单单元测试。
+`│   ├── test_packaging.py` — 验证符合命名规则的源码 ZIP、SHA-256、资产清单、确定性打包和已附加 APP 资产不被回归测试删除。
+`│   └── test_project.py` — 项目身份、arm64 Swift -O 构建、Xcode 27 架构检查、Release SHA 和每周自动递增版本回归测试。
 `├── .editorconfig` — 统一 UTF-8、LF、末尾换行和空白规则，减少跨编辑器/跨平台无意义 Diff。
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。

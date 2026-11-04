@@ -37,3 +37,23 @@ Artifact 默认保留 14 天。需要长期保存时，创建正式 Release。
 ## v0.0.3 构建资源策略
 
 v0.0.3 只生成 Apple Silicon arm64 APP。Xcode 并行任务数默认为 2，构建工作流不再自动取消同一分支上正在执行的任务，超时设为 240 分钟。
+
+## Weekly Upstream Preview
+
+`.github/workflows/upstream-weekly.yml` 每周一 09:17（America/Los_Angeles）检查官方 Client `main`。没有变化时只运行轻量检查；发现新 SHA 后才启动 macOS Runner，自动提升 Patch 版本、构建 APP、提交 main、创建 tag 并发布 Pre-release。
+
+手动运行：Actions → Weekly Upstream Check and Preview Release → Run workflow。`force_rebuild` 仅用于明确要求在上游 SHA 不变时重新构建并产生新 Patch 版本。
+
+## GitHub 权限设置
+
+自动周度发布使用本仓库 `GITHUB_TOKEN`，只需要 `contents: write`。请检查 Settings → Actions → General → Workflow permissions，允许 Actions 读写仓库内容。
+
+如果 `main` 分支启用了禁止机器人直接推送的 branch protection / ruleset，周度工作流会在 push 阶段失败，不会创建 Release。请允许 `github-actions[bot]` 写入，或后续将自动发布改为 PR 审核模式。
+
+## Releases 页面下载
+
+正式和 Weekly Preview 均在：
+
+<https://github.com/cdreaming/Clash-Mac-Compile/releases>
+
+Release 说明区会解释 APP ZIP、源码 ZIP、构建元数据、SHA-256、架构、安装方式、配置目录和无签名限制。周度自动版本为 Pre-release；Stable 由维护者确认后发布。

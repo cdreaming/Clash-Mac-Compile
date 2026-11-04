@@ -24,3 +24,10 @@
 ## 漏洞报告
 
 请勿在公开 Issue 中提交真实代理订阅、访问令牌、私钥或用户流量日志。
+
+
+## Weekly release automation
+
+The weekly workflow uses the repository-scoped `GITHUB_TOKEN` with `contents: write` to commit version metadata, create a tag, and publish a GitHub Pre-release. It builds only pinned upstream Client commits and records the actual commit in `BUILD-METADATA.json`.
+
+Do not store a personal access token or Apple signing credential for this workflow. If branch protection blocks `github-actions[bot]` from pushing to `main`, the workflow should fail rather than force-push.

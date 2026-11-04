@@ -35,17 +35,21 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
         self.assertIn("ARCHS=arm64", script)
         self.assertIn("ONLY_ACTIVE_ARCH=YES", script)
+        self.assertIn('SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL"', script)
+        self.assertIn('CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"', workflow)
         self.assertIn('-jobs "$BUILD_JOBS"', script)
         self.assertIn("lipo -archs", script)
         self.assertNotIn("lipo -verify_arch", script)
         self.assertNotIn("x86_64", script)
         self.assertIn("runs-on: xcode-27", workflow)
-        self.assertIn("actions/upload-artifact@", workflow)
+        self.assertIn("actions/upload-artifact@v6", workflow)
         self.assertIn("macos-arm64", workflow)
         self.assertNotIn("cancel-in-progress: true", workflow)
         self.assertIn("timeout-minutes: 240", workflow)
         self.assertIn('CLASH_BUILD_JOBS: "2"', workflow)
         self.assertIn('go-version: "1.26.10"', workflow)
+        self.assertIn("actions/upload-artifact@v6", workflow)
+        self.assertNotIn("actions/upload-artifact@v4", workflow)
 
 
     def test_build_script_refuses_non_macos_hosts(self):
@@ -55,6 +59,35 @@ class ProjectTests(unittest.TestCase):
         result = self.run_cmd("bash", "scripts/build-macos-app.sh", "--output", "build/test")
         self.assertEqual(result.returncode, 2)
         self.assertIn("requires macOS", result.stderr)
+
+
+    def test_weekly_upstream_release_workflow_contract(self):
+        workflow = (ROOT / ".github/workflows/upstream-weekly.yml").read_text(encoding="utf-8")
+        prep = (ROOT / "scripts/prepare-weekly-upstream-release.py").read_text(encoding="utf-8")
+        self.assertIn('timezone: "America/Los_Angeles"', workflow)
+        self.assertIn("--client-sha", prep)
+        self.assertIn("--prerelease", workflow)
+        self.assertIn("contents: write", workflow)
+        self.assertIn("scripts/verify-github-release.sh", workflow)
+
+
+    def test_weekly_upstream_bumps_patch_on_new_sha(self):
+        with tempfile.TemporaryDirectory() as td:
+            copy = Path(td) / "repo"
+            ignore = shutil.ignore_patterns(".git", ".dev-state", "dist", "build",
+                                            "tmp", "__pycache__", ".pytest_cache",
+                                            ".venv", "venv")
+            shutil.copytree(ROOT, copy, ignore=ignore)
+            new_sha = "1" * 40
+            result = subprocess.run(
+                [sys.executable, "scripts/prepare-weekly-upstream-release.py",
+                 "--client-sha", new_sha],
+                cwd=copy, text=True, capture_output=True
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual((copy / "VERSION").read_text().strip(), "0.0.6")
+            self.assertEqual((copy / "UPSTREAM_CLIENT_REF").read_text().strip(), new_sha)
+            self.assertTrue((copy / "docs/releases/v0.0.6/RELEASE-NOTES.md").is_file())
 
     def test_release_rejects_mutable_upstream_branch(self):
         with tempfile.TemporaryDirectory() as td:
@@ -78,20 +111,20 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "project-source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.0.5_source.zip").write_bytes(b"source")
             (dist / "validation.md").write_text("validation\n", encoding="utf-8")
             manifest = {
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.0.4",
-                "assets": ["project-source.zip", "validation.md"]
+                "project_version": "0.0.5",
+                "assets": ["Clash_Mac_Compile_v0.0.5_source.zip", "validation.md"]
             }
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.0.4-macos-arm64.zip").write_bytes(b"app zip")
+            (build / "Clash_Mac_Compile-v0.0.5-macos-arm64.zip").write_bytes(b"app zip")
             (build / "BUILD-METADATA.json").write_text('{"client_commit":"abc"}\n', encoding="utf-8")
 
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.0.4"
+                "--dist", str(dist), "--source", str(build), "--version", "0.0.5"
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

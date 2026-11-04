@@ -36,7 +36,7 @@ def main():
         if sensitive(rel): raise RuntimeError(f"Release 拒绝敏感文件: {rel}")
         files.append(p)
     files.sort(key=lambda p:p.relative_to(root).as_posix())
-    package=f"{slug}-v{version}{suffix}-source.zip"; top=f"{slug}-v{version}{suffix}"
+    package=f"{profile['project_name']}_v{version}{suffix}_source.zip"; top=f"{profile['project_name']}_v{version}{suffix}"
     with zipfile.ZipFile(dist/package,"w") as z:
         for p in files:
             rel=p.relative_to(root).as_posix()

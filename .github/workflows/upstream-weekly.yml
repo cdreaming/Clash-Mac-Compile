@@ -1,0 +1,190 @@
+name: Weekly Upstream Check and Preview Release
+
+on:
+  schedule:
+    - cron: "17 9 * * 1"
+      timezone: "America/Los_Angeles"
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "即使上游 Client SHA 未变化，也递增 Patch 版本并重新构建"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-upstream-release
+  cancel-in-progress: false
+
+jobs:
+  check-upstream:
+    name: Check ProjectClash Client progress
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+      latest_sha: ${{ steps.detect.outputs.latest_sha }}
+    steps:
+      - name: Checkout project metadata
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Compare upstream Client commit
+        id: detect
+        env:
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          CURRENT_SHA="$(tr -d '[:space:]' < UPSTREAM_CLIENT_REF)"
+          LATEST_SHA="$(git ls-remote https://github.com/ProjectClash/Clash-Client.git refs/heads/main | awk 'NR==1 {print $1}')"
+          if [[ ! "$LATEST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Could not resolve ProjectClash/Clash-Client main commit" >&2
+            exit 1
+          fi
+          echo "Current Client SHA: $CURRENT_SHA"
+          echo "Latest Client SHA:  $LATEST_SHA"
+          echo "latest_sha=$LATEST_SHA" >> "$GITHUB_OUTPUT"
+          if [[ "$CURRENT_SHA" == "$LATEST_SHA" && "$FORCE_REBUILD" != "true" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No upstream changes; skipping macOS build."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Upstream changed or manual force requested; build required."
+          fi
+
+  build-and-release:
+    name: Build, tag and publish Weekly Preview
+    needs: check-upstream
+    if: needs.check-upstream.outputs.changed == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout project with push credentials
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.10"
+          check-latest: false
+          cache: false
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+
+      - name: Prepare next patch version and pin upstream SHA
+        id: version
+        env:
+          CLIENT_SHA: ${{ needs.check-upstream.outputs.latest_sha }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ARGS=(--client-sha "$CLIENT_SHA" --risk L2)
+          if [[ "$FORCE_REBUILD" == "true" ]]; then ARGS+=(--force); fi
+          python3 scripts/prepare-weekly-upstream-release.py "${ARGS[@]}"
+
+      - name: Validate immutable upstream and build configuration
+        run: |
+          python3 scripts/check-build-config.py --release
+          python3 -m py_compile scripts/*.py tests/*.py
+          bash -n scripts/build-macos-app.sh
+          python3 -m unittest -q tests.test_project
+
+      - name: Build native macOS app (runtime speed priority)
+        env:
+          CLASH_BUILD_JOBS: "2"
+          CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
+        run: bash scripts/build-macos-app.sh --output build/release
+
+      - name: Build versioned source package
+        run: python3 scripts/build-release.py
+
+      - name: Attach APP, metadata and checksums
+        run: |
+          python3 scripts/attach-release-assets.py \
+            --dist dist \
+            --source build/release \
+            --version "${{ steps.version.outputs.version }}"
+
+      - name: Verify release package
+        run: python3 -m unittest -q tests.test_packaging
+
+      - name: Commit version update and create tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No version files changed; refusing to create an empty release." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $TAG" >&2
+            exit 1
+          fi
+          git commit -m "chore(release): $TAG"
+          git tag -a "$TAG" -m "Clash_Mac_Compile $TAG"
+          # A non-fast-forward rejection is intentional protection against racing main updates.
+          git push origin HEAD:main
+          git push origin "refs/tags/$TAG"
+
+      - name: Publish GitHub Pre-release with download guide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --title "Clash macOS $TAG · Weekly Preview" \
+            --notes-file "docs/releases/v${VERSION}/RELEASE-NOTES.md"
+
+      - name: Verify online Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: bash scripts/verify-github-release.sh "$VERSION" "$TAG"
+
+      - name: Write workflow summary
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          CLIENT_SHA: ${{ needs.check-upstream.outputs.latest_sha }}
+        shell: bash
+        run: |
+          {
+            echo "## Weekly Preview published"
+            echo ""
+            echo "- Version: \`$TAG\`"
+            echo "- Project version: \`$VERSION\`"
+            echo "- ProjectClash Client: \`$CLIENT_SHA\`"
+            echo "- Architecture: Apple Silicon arm64"
+            echo "- Swift optimization: \`-O\` (runtime-speed priority)"
+            echo "- Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+            echo ""
+            echo "The release page contains the APP, source ZIP, build metadata, checksums and installation/configuration notes."
+          } >> "$GITHUB_STEP_SUMMARY"

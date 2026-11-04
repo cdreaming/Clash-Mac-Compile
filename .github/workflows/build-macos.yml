@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ClashmacOS (Apple Silicon arm64)
+    name: Build ClashmacOS (Apple Silicon arm64 · Runtime Speed)
     runs-on: xcode-27
     timeout-minutes: 240
 
@@ -23,15 +23,16 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "1.26.10"
           check-latest: false
+          cache: false
 
       - name: Install XcodeGen
         run: |
@@ -50,6 +51,7 @@ jobs:
       - name: Build native macOS app
         env:
           CLASH_BUILD_JOBS: "2"
+          CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
         run: |
           bash scripts/build-macos-app.sh --output build/ci
 
@@ -60,7 +62,7 @@ jobs:
           echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Upload macOS app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-${{ github.sha }}
           path: |

@@ -27,6 +27,7 @@ VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 CLIENT_REF="$(tr -d '[:space:]' < "$ROOT/UPSTREAM_CLIENT_REF")"
 BUILD_NUMBER="${GITHUB_RUN_NUMBER:-1}"
 BUILD_JOBS="${CLASH_BUILD_JOBS:-2}"
+SWIFT_OPTIMIZATION_LEVEL="${CLASH_SWIFT_OPTIMIZATION_LEVEL:--O}"
 
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid VERSION: $VERSION" >&2; exit 2; }
 [[ "$CLIENT_REF" =~ ^[A-Za-z0-9._/-]+$ && "$CLIENT_REF" != -* ]] || {
@@ -35,6 +36,7 @@ BUILD_JOBS="${CLASH_BUILD_JOBS:-2}"
 }
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || { echo "Invalid build number" >&2; exit 2; }
 [[ "$BUILD_JOBS" =~ ^[1-4]$ ]] || { echo "CLASH_BUILD_JOBS must be between 1 and 4" >&2; exit 2; }
+[[ "$SWIFT_OPTIMIZATION_LEVEL" == "-O" || "$SWIFT_OPTIMIZATION_LEVEL" == "-Osize" ]] || { echo "CLASH_SWIFT_OPTIMIZATION_LEVEL must be -O or -Osize" >&2; exit 2; }
 
 if [[ "$OUTPUT_DIR" != /* ]]; then OUTPUT_DIR="$ROOT/$OUTPUT_DIR"; fi
 mkdir -p "$OUTPUT_DIR"
@@ -56,6 +58,8 @@ uname -a
 echo "CPU cores: $(sysctl -n hw.ncpu)"
 echo "Memory bytes: $(sysctl -n hw.memsize)"
 echo "Build jobs: $BUILD_JOBS"
+echo "Swift optimization: $SWIFT_OPTIMIZATION_LEVEL"
+echo "Performance profile: runtime-speed-priority"
 echo "Target architecture: arm64 only"
 echo "==> Xcode"
 xcodebuild -version
@@ -101,6 +105,7 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=YES \
+  SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL" \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   CLASH_SOURCE_REVISION="$CLIENT_SHA" \
@@ -154,10 +159,10 @@ ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
-python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" <<'PY'
+python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" "$SWIFT_OPTIMIZATION_LEVEL" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
-root, client, client_sha, version, build_number, artifact, output, build_jobs = sys.argv[1:]
+root, client, client_sha, version, build_number, artifact, output, build_jobs, swift_optimization = sys.argv[1:]
 client = Path(client)
 lock = json.loads((client / "Dependencies.lock.json").read_text(encoding="utf-8"))
 def cmd(*args):
@@ -171,7 +176,8 @@ metadata = {
     "configuration": "Release",
     "architectures": ["arm64"],
     "build_jobs": int(build_jobs),
-    "parallelize_targets": False,
+    "swift_optimization_level": swift_optimization,
+    "performance_profile": "runtime-speed-priority",
     "signing": "disabled",
     "artifact": artifact,
     "client_repository": "https://github.com/ProjectClash/Clash-Client",

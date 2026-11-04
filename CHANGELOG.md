@@ -1,5 +1,14 @@
 # Version Changelog
 
+## v0.0.5
+
+- Release Swift 优化改为 `-O`，优先运行速度与交互流畅度；保留 arm64 与最多 2 个 Xcode 并行任务。
+- 增加 App Group 配置目录诊断脚本和 macOS 数据目录说明。
+- 增加 Instruments / Go pprof 性能基准策略，不虚构未经测量的性能收益。
+- 增加每周一 09:17（America/Los_Angeles）检查 ProjectClash Client 的工作流；仅在上游 commit 变化时递增 Patch、构建、提交、打 tag 并发布 Pre-release。
+- GitHub Releases 增加 APP、符合 `Clash_Mac_Compile_v0.0.*_source.zip` 命名规则的源码包、构建元数据、SHA-256 和完整下载说明。
+- 升级 GitHub Actions 至 Node 24 兼容版本，并关闭无根目录 go.sum 时不适用的 setup-go 缓存。
+
 ## v0.0.4
 
 - 修复 Xcode 27 的 `lipo -verify_arch` 参数顺序不兼容问题。

@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.4`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.5`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -35,7 +35,7 @@
 3. 检出官方 Clash-Client 指定版本。
 4. 执行官方 `scripts/bootstrap.py`，按其 `Dependencies.lock.json` 获取并编译 Clash.xcframework 与 Adapter。
 5. 执行官方 `scripts/configure.py`，生成 Xcode 工程并编译 macOS CLI helper。
-6. 使用 `ClashmacOS` Scheme、Release 配置，仅构建 `arm64`（Apple Silicon）。Xcode 最大并行任务数限制为 2，以降低 Runner 内存压力。
+6. 使用 `ClashmacOS` Scheme、Release 配置，仅构建 `arm64`（Apple Silicon）。Swift Release 优化使用 `-O`，优先运行速度；Xcode 最大并行任务数限制为 2，以控制 Runner 资源。
 7. 使用 `lipo -archs` 检查 APP 主执行文件架构（兼容 Xcode 27），通过后将 `Clash.app` 打成 ZIP 并上传为 GitHub Actions Artifact。
 
 构建成功后，在 GitHub 仓库的 **Actions → 对应运行记录 → Artifacts** 下载：
@@ -59,10 +59,10 @@
 `VERSION` 是项目版本唯一事实源。每一轮功能、脚本或构建配置改动都应提升项目版本，不要复用已发布版本：
 
 ```bash
-python3 scripts/prepare-version.py --version 0.0.5 --risk L2 --write
+python3 scripts/prepare-version.py --version 0.0.6 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布。
 
 ## 上游版本可复现性
 
@@ -82,11 +82,29 @@ Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 
 
 后续如需自动签名，应通过 GitHub Secrets 配置证书，并按 Apple 的能力与描述文件要求调整工作流；不要提交 `.p12`、私钥或 Provisioning Profile 到 Git。
 
+## GitHub Releases 下载
+
+正式下载入口：
+
+<https://github.com/cdreaming/Clash-Mac-Compile/releases>
+
+每个 Release 的说明区提供版本来源、兼容性、安装步骤、配置目录、签名状态和资产说明。普通用户优先下载 `Clash_Mac_Compile-vX.Y.Z-macos-arm64.zip`；完整构建工程下载 `Clash_Mac_Compile_vX.Y.Z_source.zip`。详细说明见 `docs/github/RELEASE-DOWNLOAD-GUIDE.md`。
+
+## 每周上游自动检查
+
+`.github/workflows/upstream-weekly.yml` 每周一 09:17（America/Los_Angeles）检查 ProjectClash/Clash-Client `main`。没有新 commit 时跳过构建；有新 commit 时自动递增 Patch 版本、固定 Client SHA、运行质量检查、构建 arm64 APP、提交 main、创建 `vX.Y.Z` tag 并发布 GitHub Pre-release。也可以在 Actions 页面手动运行；`force_rebuild` 仅用于明确要求同一上游 SHA 重新构建。
+
+自动化使用仓库 `GITHUB_TOKEN` 的 `contents: write` 权限。若 `main` 分支保护规则禁止 GitHub Actions 直接推送，自动版本提交会被拒绝；请在 GitHub Settings → Actions → General 允许 Actions 写入内容，并按需调整分支保护。自动周度版本默认为 Pre-release，不自动冒充 Stable。
+
+## 性能优化
+
+Release 默认使用 Swift `-O`，优先运行速度而非最小体积；Go 内核沿用上游锁定源码及其 Go 工具链，不注入未经基准验证的运行时 flags。性能优化策略和 Instruments / Go pprof 基准方法见 `docs/performance/PERFORMANCE-STRATEGY.md`。没有可重复基准前，不宣称具体性能提升比例。
+
 ## 正式 Release
 
 正式 Release 采用 `vX.Y.Z` tag。Release workflow 在 macOS Runner 上重新构建 APP，将项目源码包、arm64 APP ZIP、构建元数据和 SHA-256 一起上传，并执行线上资产校验。
 
-本版已经将 `UPSTREAM_CLIENT_REF` 固定为完整 commit SHA。main CI 与 v0.0.2 Release 均使用相同的官方 Client 源码。
+本版将 `UPSTREAM_CLIENT_REF` 固定为完整 commit SHA。手动 Stable Release 由 tag 工作流发布；周度上游工作流在同一次运行中完成构建、提交、tag 和 Pre-release。
 
 ## 本地静态检查
 
