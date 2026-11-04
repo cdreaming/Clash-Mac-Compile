@@ -28,7 +28,7 @@ Artifact 默认保留 14 天。需要长期保存时，创建正式 Release。
 
 ## 正式 Release 前的上游锁定
 
-第一次构建后打开 `BUILD-METADATA.json`，复制 `client_commit` 的完整 SHA 到 `UPSTREAM_CLIENT_REF`。按项目版本规则提升 `VERSION`，更新文档、提交并推送。只有锁定后才能推送 `vX.Y.Z` tag 触发 Release。
+本版已将 `UPSTREAM_CLIENT_REF` 固定为完整 40 位 SHA。未来升级上游时，先完成一次 main 构建并审查 `BUILD-METADATA.json`，再把新 SHA 固定到文件，提升项目版本并提交。
 
 ## Runner 与费用
 

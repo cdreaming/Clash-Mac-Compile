@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（初始版本 `0.0.1`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.2`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -66,10 +66,10 @@ python3 scripts/prepare-version.py --version 0.0.2 --risk L2 --write
 
 ## 上游版本可复现性
 
-`UPSTREAM_CLIENT_REF` 初始值为 `main`，便于第一次上传后立即编译。构建日志和 `BUILD-METADATA.json` 会记录实际解析到的 40 位 Client commit SHA。
+`UPSTREAM_CLIENT_REF` 当前固定为官方 Client commit `e3e647283b1593a61dba622f13cd499deeda9b8b`。构建日志和 `BUILD-METADATA.json` 会记录实际解析到的 40 位 Client commit SHA。
 
-- 日常快速编译：可以继续使用 `main`。
-- 准备正式 Release：把 `UPSTREAM_CLIENT_REF` 改为构建元数据中的完整 40 位 commit SHA，并提交该锁定值。
+- 日常开发：建议保持本文件中的固定 SHA，以便 main CI 与 Release 使用相同源码。
+- 升级上游：先审查新的官方 Client commit 和其 `Dependencies.lock.json`，再更新 SHA 并提升本项目版本。
 - Release workflow 会拒绝 `main` 等可移动分支，避免同一版本标签在未来悄悄构建出不同源码。
 
 Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 Client commit 内的 `Dependencies.lock.json` 固定。
@@ -86,7 +86,7 @@ Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 
 
 正式 Release 采用 `vX.Y.Z` tag。Release workflow 在 macOS Runner 上重新构建 APP，将项目源码包、APP ZIP、构建元数据和 SHA-256 一起上传，并执行线上资产校验。
 
-Release 之前必须将 `UPSTREAM_CLIENT_REF` 固定为完整 commit SHA。首次 `main` 构建仅用于验证 GitHub 云端编译链路。
+本版已经将 `UPSTREAM_CLIENT_REF` 固定为完整 commit SHA。main CI 与 v0.0.2 Release 均使用相同的官方 Client 源码。
 
 ## 本地静态检查
 

@@ -43,7 +43,8 @@
 `│   ├── release-lessons/` — 跨版本事故与经验库；把根因转化成下一版自动防回归规则。
 `│   │   ├── README.md` — 版本经验索引；要求 AI 每轮读取当前经验并在收尾更新。
 `│   │   ├── TEMPLATE.md` — 发布经验标准模板；定义目标、事故、根因、决策、防回归、验证和遗留边界。
-`│   │   └── v0.0.1.md` — 当前版本发布经验；记录风险、根因、决策和防回归规则。
+`│   │   ├── v0.0.1.md` — 当前版本发布经验；记录风险、根因、决策和防回归规则。
+`│   │   └── v0.0.2.md` — v0.0.2 发布经验；将 main 可移动引用造成的 Release 阻断转化为 SHA 防回归规则。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -51,6 +52,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — 当前版本发布经验报告与模板反馈。
 `│   │   │   ├── RELEASE-NOTES.md` — 当前版本中文发布说明。
 `│   │   │   └── VALIDATION-REPORT.md` — 当前版本真实验证报告。
+`│   │   ├── v0.0.2/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.2 开发日志；记录修复可移动上游引用、Go 工具链同步和本地验证结果。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — v0.0.2 发布检查表；记录候选门禁状态和待 GitHub 云端验证的发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.2 发布经验报告；记录上游版本可复现性改进。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.0.2 发布说明；说明固定 Client SHA、Go 1.26.10 和 Release 修复。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.0.2 验证报告；区分本地真实通过项与尚未执行的 GitHub 云端 Xcode 构建。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -102,7 +109,7 @@
 `├── SHA256SUMS.txt` — 仓库源码 SHA-256 清单；用于发现 AI 交接、结构更新或打包前的源码漂移。
 `├── TEMPLATE_VERSION` — 通用治理模板语义版本号；与业务项目 VERSION 独立演进。
 `├── THIRD_PARTY_NOTICES.md` — ProjectClash GPL-3.0 与传递依赖许可证、署名和源码提供提醒。
-`├── UPSTREAM_CLIENT_REF` — ProjectClash/Clash-Client 的构建引用；正式 Release 前必须锁定完整 commit SHA。
+`├── UPSTREAM_CLIENT_REF` — ProjectClash/Clash-Client 固定提交：e3e647283b1593a61dba622f13cd499deeda9b8b；正式 Release 的不可变上游版本事实源。
 `└── VERSION` — 当前项目活动语义版本号；版本目录、tag 和 Release 的唯一版本来源。
 
 ## 维护规则

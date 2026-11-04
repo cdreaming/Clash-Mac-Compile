@@ -12,7 +12,7 @@
 
 ## 工具链要求
 
-Client README 要求 Go 自动工具链选择，或使用其锁定 Kernel 对应的 Go 版本。当前构建脚本导出 `GOTOOLCHAIN=auto`，GitHub workflow 安装 `stable` Go；进入 Kernel binding module 时，Go 会自动下载并切换到该提交 `go.mod` 的 `toolchain` 指定版本，避免 Client 的 `main` 更新后固定 Go patch 版本过期。
+Client README 要求 Go 自动工具链选择，或使用其锁定 Kernel 对应的 Go 版本。当前构建脚本导出 `GOTOOLCHAIN=auto`，GitHub workflow 安装该 Client 提交要求的 Go `1.26.10`；构建脚本同时启用 `GOTOOLCHAIN=auto`。
 
 ## 官方构建流程
 
@@ -41,6 +41,4 @@ xcodebuild \
 
 ## 上游版本策略
 
-`UPSTREAM_CLIENT_REF` 首版为 `main`，适合快速验证流水线。构建元数据会记录实际 SHA。
-
-正式 Release 前必须将其改成完整 40 位 commit SHA。这样相同项目 tag 不会因为上游分支前移而悄悄换用不同源码。Client 依赖的 Kernel 和 Adapter commit 则继续由 `Dependencies.lock.json` 固定。
+`UPSTREAM_CLIENT_REF` 当前固定为 `e3e647283b1593a61dba622f13cd499deeda9b8b`，来自官方 Client 的 2026-10-28 源码提交。正式 Release 使用完整 40 位 SHA，因此不会因上游 `main` 分支前移而改变本版源码。Client 依赖的 Kernel 和 Adapter commit 则继续由 `Dependencies.lock.json` 固定。

@@ -1,13 +1,13 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（初始版本 `0.0.1`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.2`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
 - 上游客户端：`ProjectClash/Clash-Client`
-- 上游客户端 Ref：`UPSTREAM_CLIENT_REF`
-- Go 工具链：GitHub Actions 安装 stable，`GOTOOLCHAIN=auto` 跟随锁定 Kernel module
+- 上游客户端 Ref：`e3e647283b1593a61dba622f13cd499deeda9b8b`
+- Go 工具链：GitHub Actions 安装 `1.26.10`，构建脚本启用 `GOTOOLCHAIN=auto`
 - Xcode Scheme：`ClashmacOS`
 - 构建配置：Release
 - 目标架构：`arm64` + `x86_64`

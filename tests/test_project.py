@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,7 +36,7 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
         self.assertIn("runs-on: xcode-27", workflow)
         self.assertIn("actions/upload-artifact@", workflow)
-        self.assertIn('go-version: "stable"', workflow)
+        self.assertIn('go-version: "1.26.10"', workflow)
 
 
     def test_build_script_refuses_non_macos_hosts(self):
@@ -47,9 +48,19 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("requires macOS", result.stderr)
 
     def test_release_rejects_mutable_upstream_branch(self):
-        result = self.run_cmd(sys.executable, "scripts/check-build-config.py", "--release")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("full 40-character commit SHA", result.stderr)
+        with tempfile.TemporaryDirectory() as td:
+            copy = Path(td) / "repo"
+            ignore = shutil.ignore_patterns(".git", ".dev-state", "dist", "build",
+                                            "tmp", "__pycache__", ".pytest_cache",
+                                            ".venv", "venv")
+            shutil.copytree(ROOT, copy, ignore=ignore)
+            (copy / "UPSTREAM_CLIENT_REF").write_text("main\n", encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, "scripts/check-build-config.py", "--release"],
+                cwd=copy, text=True, capture_output=True
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("full 40-character commit SHA", result.stderr)
 
     def test_attach_release_assets_updates_manifest_and_checksums(self):
         with tempfile.TemporaryDirectory() as td:

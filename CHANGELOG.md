@@ -1,5 +1,12 @@
 # Version Changelog
 
+## v0.0.2
+
+- 将 ProjectClash/Clash-Client 固定到官方 commit `e3e647283b1593a61dba622f13cd499deeda9b8b`。
+- 将 GitHub Actions Go 工具链固定为该客户端提交要求的 Go 1.26.10。
+- 正式 Release 前置检查可通过完整 40 位 SHA 校验，避免使用可移动的 `main` 分支。
+- 更新 v0.0.2 开发、验证、发布说明与 Sourcetree 上传文档。
+
 ## v0.0.1
 
 - 基于 AI Project Development Template v1.1.1 初始化项目治理结构。
