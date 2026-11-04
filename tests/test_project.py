@@ -19,7 +19,7 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(profile["project_name"], "Clash_Mac_Compile")
         self.assertEqual(profile["project_slug"], "clash-mac-compile")
         self.assertEqual(profile["repository"], "cdreaming/Clash-Mac-Compile")
-        self.assertRegex((ROOT / "VERSION").read_text().strip(), r"^\d+\.\d+\.\d+$")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "0.0.7")
 
     def test_build_configuration(self):
         result = self.run_cmd(sys.executable, "scripts/check-build-config.py")
@@ -99,9 +99,9 @@ class ProjectTests(unittest.TestCase):
                 cwd=copy, text=True, capture_output=True
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual((copy / "VERSION").read_text().strip(), "0.0.7")
+            self.assertEqual((copy / "VERSION").read_text().strip(), "0.0.8")
             self.assertEqual((copy / "UPSTREAM_CLIENT_REF").read_text().strip(), new_sha)
-            release_notes = copy / "docs/releases/v0.0.7/RELEASE-NOTES.md"
+            release_notes = copy / "docs/releases/v0.0.8/RELEASE-NOTES.md"
             self.assertTrue(release_notes.is_file())
             notes_text = release_notes.read_text(encoding="utf-8")
             self.assertIn("macos-arm64-unsigned.zip", notes_text)

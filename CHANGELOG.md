@@ -1,5 +1,14 @@
 # Version Changelog
 
+## v0.0.7
+
+- 基于 v0.0.6 治理兼容修复版升级正式版本号，保留无签名 arm64 构建。
+- 修复 `dev-session.py` 对缺少 `## 完成摘要` 和会话元数据的旧日志兼容问题。
+- 增加 `dev-session.py validate`，供重发布前执行开发日志预检。
+- 调整 `prepare-republish.py` 顺序：预检通过后才写入历史、Checklist 和 `RELEASE_REVISION`。
+- 增加旧日志缺少完成摘要、缺少会话标记及缺失日志时不得半更新状态的回归测试。
+- 每周自动生成的开发日志增加 `## 完成摘要`，防止上游自动升级后重现治理失败。
+
 ## v0.0.6
 
 - 移除 Apple Developer / Developer ID / Provisioning Profile / Apple Notary 相关脚本、Secrets 和 workflow steps。
@@ -7,6 +16,7 @@
 - APP ZIP 命名增加 `-unsigned`，构建元数据标记 `distribution_mode=unsigned`、`vpn_authorization_supported=false`。
 - GitHub Releases 正式上传无签名 APP、源码包、构建元数据、SHA-256 和明确的下载 / VPN 限制说明。
 - 保留 Swift `-O` 运行速度优先、arm64、Xcode 并行任务最多 2、每周上游检查和自动 Patch / Tag / Pre-release。
+- 修复 `dev-session.py` 对缺少 `## 完成摘要` 的旧版开发日志兼容性；重发布前先预检，避免失败时部分修改 Release 状态。
 
 ## v0.0.5
 

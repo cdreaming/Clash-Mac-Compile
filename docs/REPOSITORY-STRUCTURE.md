@@ -55,7 +55,7 @@
 `│   │   ├── v0.0.4.md` — v0.0.4 发布经验；将 Xcode 27 lipo 参数兼容性转化为回归检查。
 `│   │   ├── v0.0.5.md` — 当前版本发布经验；把事故根因转成可执行防回归规则。
 `│   │   ├── v0.0.6.md` — v0.0.6 发布经验；无签名构建不等于 Network Extension / Packet Tunnel 可用。
-`│   │   └── v0.0.7.md` — 当前版本发布经验；把事故根因转成可执行防回归规则。
+`│   │   └── v0.0.7.md` — v0.0.7 发布经验规则；将旧日志兼容和重发布预检故障转化为防回归要求。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -88,17 +88,17 @@
 `│   │   │   ├── RELEASE-NOTES.md` — v0.0.5 GitHub Release 下载说明；列出 APP、源码、构建元数据、安装、配置目录、性能与周度 Preview 说明。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.0.5 本地真实验证报告；区分已通过的静态、项目、打包测试与未执行的云端构建。
 `│   │   ├── v0.0.6/` — 当前项目版本归档目录；保存无签名开发、验证、发布和经验记录。
-`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.6 开发日志；记录按用户要求移除 Apple signing / provisioning / notarization 的实现。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.6 当前开发日志，包含版本目标、治理修复检查点和完成摘要。
 `│   │   │   ├── RELEASE-CHECKLIST.md` — v0.0.6 无签名发布检查表；区分本地源码验证与待执行的 GitHub 云端构建 / 发布证据。
-`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.6 发布经验；记录无签名分发与 VPN Packet Tunnel 限制。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.6 发布经验；记录 dev-session 缺少完成摘要导致重发布失败的根因和修复。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.0.6 签名发布方案已撤回的历史说明，不作为正式可下载版本。
-`│   │   │   └── VALIDATION-REPORT.md` — v0.0.6 本地验证报告，区分静态检查、项目测试与待执行的 GitHub 云端构建。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.0.6 验证报告；记录开发日志兼容、重发布预检与回归测试结果。
 `│   │   ├── v0.0.7/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
-`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存 active/complete 状态、检查点和恢复入口。
-`│   │   │   ├── RELEASE-CHECKLIST.md` — 当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。
-`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — 当前版本发布经验报告；记录流程问题并决定是否升级通用模板。
-`│   │   │   ├── RELEASE-NOTES.md` — v0.0.7 无签名 arm64 APP 下载说明、VPN 限制、安装方式、性能策略和每周 Preview 自动发布说明。
-`│   │   │   └── VALIDATION-REPORT.md` — v0.0.7 本地验证报告，明确无签名构建和 VPN 授权限制，并区分未执行的云端测试。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.7 开发日志；记录版本升级、旧日志兼容、重发布预检和回归测试检查点。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — v0.0.7 发布检查表；区分源码级完成项和待执行的 GitHub 云端构建 / 发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.7 发布经验；记录开发日志格式兼容、预检顺序和防半更新规则。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.0.7 用户发布说明；治理兼容修复、无签名 arm64 APP、VPN 限制、下载资产和每周 Preview。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.0.7 实际验证报告；记录逐项测试结果并区分未执行的云端构建和 VPN 实机验证。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -125,27 +125,27 @@
 `│   ├── check-build-config.py` — 校验完整上游 SHA、arm64 Swift -O 无签名构建，以及不依赖 Apple Developer Secrets 的 Release / Weekly 工作流。
 `│   ├── check-governance.py` — development/candidate/release/archive 四级治理门禁；验证结构、文档、状态和远端证据语义。
 `│   ├── dev-safe-run.py` — 高风险长任务安全执行器；提供 heartbeat、hard timeout、持久日志和退出状态。
-`│   ├── dev-session.py` — 版本开发会话状态机；支持 start、checkpoint、status、complete 和归档版本防重开。
+`│   ├── dev-session.py` — 开发会话状态与检查点工具；兼容旧版日志，自动补齐会话元数据和完成摘要，并提供 validate 预检命令。
 `│   ├── finalize-release-archive.py` — 仅用真实 GitHub URL、tag commit、Actions 与线上验证结果把 Release 归档标记为 complete。
-`│   ├── prepare-republish.py` — 重新打开已发布版本；保存旧 Release 证据并准备 revision 或 force-overwrite。
+`│   ├── prepare-republish.py` — 重发布前先修复/验证开发日志，再写入历史、Checklist 和 RELEASE_REVISION，避免预检失败造成发布状态半更新。
 `│   ├── prepare-version.py` — 创建下一项目版本；生成全套版本文档、可选深度升级计划并同步结构/manifest。
-`│   ├── prepare-weekly-upstream-release.py` — 检测到上游新 Client SHA 后自动递增 Patch、固定 SHA、生成无签名 Weekly Preview 下载说明和发布文档。
+`│   ├── prepare-weekly-upstream-release.py` — 每周上游变化时自动递增 Patch 并生成无签名 Preview 文档；开发日志自动包含完成摘要章节。
 `│   ├── run-quality-gates.py` — 统一质量门禁执行器；串行运行治理、静态、单元、集成、smoke、安全和模拟。
 `│   ├── run-simulated-environment.py` — 建立没有 Git/缓存/Secret 的 clean-room 临时工作区并运行真实项目 simulation。
 `│   ├── set-release-disposition.py` — 把未正式发布的旧版本按事实标记为 superseded/abandoned/failed，不阻塞后续开发。
 `│   ├── update-repository-structure.py` — 同步职责 catalog 并自动生成/校验逐文件逐目录 Repository Structure。
 `│   └── verify-github-release.sh` — GitHub Release 后置验证；认证下载线上资产并检查集合、SHA-256、Release Notes 和可选匿名探针。
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
-`│   ├── test_governance.py` — 治理回归与故障注入测试；验证 hook、结构、ASCII 命名、测试开关和未登记文件拦截。
+`│   ├── test_governance.py` — 治理回归测试；覆盖旧日志缺少完成摘要/会话标记、重发布预检失败时不修改发布状态等场景。
 `│   ├── test_packaging.py` — 验证源码 ZIP 完整性、无运行时密钥、Release manifest、SHA-256、同一源码树重复打包确定性和版本元数据。
-`│   └── test_project.py` — 项目身份、无签名 arm64 Swift -O 构建、无 Apple Developer Secrets 的 Release / Weekly 工作流、上游版本递增和无签名 APP Release 资产回归测试。
+`│   └── test_project.py` — 9 项项目回归测试；包含 v0.0.7 版本身份、无签名构建、每周 Patch 递增和 Release 资产处理。
 `├── .editorconfig` — 统一 UTF-8、LF、末尾换行和空白规则，减少跨编辑器/跨平台无意义 Diff。
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。
 `├── AGENTS.md` — 仓库级 AI 规则与 Clash_Mac_Compile 专属上游、签名和验证约束。
-`├── BUILD-INFO.md` — v0.0.7 项目版本、上游 SHA、Go / Xcode、arm64 Swift -O 构建设置和无签名 VPN 限制。
-`├── CHANGELOG.md` — 按版本记录构建系统变化；v0.0.7 撤回 Apple 签名方案，统一无签名编译和发布。
-`├── README.md` — 项目说明、arm64 Swift -O 无签名构建、无需 Apple Developer Secrets、VPN 限制、每周上游自动发布和 GitHub Releases 下载入口。
+`├── BUILD-INFO.md` — v0.0.7 项目版本、上游 SHA、Go / Xcode、arm64 Swift -O 构建和无签名 VPN 限制。
+`├── CHANGELOG.md` — 项目各版本变更记录；v0.0.7 记录旧版开发日志兼容、重发布预检和治理回归测试。
+`├── README.md` — v0.0.7 项目说明、无签名 arm64 Swift -O 构建、VPN 限制、GitHub Actions、每周上游自动发布和重发布日志兼容说明。
 `├── RELEASE_REVISION` — 同一项目 VERSION 的发布修订号；0 为原始发布，1/2… 对应 r1/r2 受控重发审计序号。
 `├── SECURITY.md` — Secret、Apple 签名材料、上游锁定与 GitHub Actions 安全策略。
 `├── SHA256SUMS.txt` — 仓库源码 SHA-256 清单；用于发现 AI 交接、结构更新或打包前的源码漂移。

@@ -2,7 +2,7 @@
 
 <!-- RELEASE-READY-STATUS: auto -->
 <!-- RELEASE-ARCHIVE-STATUS: pending -->
-<!-- CHANGE-RISK: L3 -->
+<!-- CHANGE-RISK: L2 -->
 <!-- RELEASE-REVISION: 0 -->
 <!-- REPUBLISH-MODE: none -->
 
@@ -21,7 +21,7 @@
 - [ ] candidate gate 通过。
 
 ## 构建
-- [ ] Release assets 已生成。
+- [x] Release source assets 已生成。
 - [x] SHA-256 / ZIP / secret audit 通过。
 
 ## 发布前

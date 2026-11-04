@@ -29,6 +29,13 @@ def main():
     print(f"Republish: mode={a.mode}, revision={nr}, tag={tag}")
     if not a.write: return 0
 
+    # Repair/validate the development journal before changing release state.
+    # This prevents a failed dev-session start from leaving checklist/revision half-mutated.
+    subprocess.check_call(
+        [sys.executable,"scripts/dev-session.py","validate"],
+        cwd=root
+    )
+
     hist=base/"REPUBLISH-HISTORY.md"
     if not hist.is_file(): hist.write_text("# Republish History\n\n保存每次重新发布前的真实证据。\n",encoding="utf-8")
     with hist.open("a",encoding="utf-8") as f:

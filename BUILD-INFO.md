@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.6`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.7`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS

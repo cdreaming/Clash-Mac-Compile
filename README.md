@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.6`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.7`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -62,7 +62,7 @@
 python3 scripts/prepare-version.py --version 0.0.7 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建和无证书自动发布。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试。
 
 ## 上游版本可复现性
 
@@ -122,3 +122,15 @@ python3 scripts/build-ai-handoff.py
 ## 许可证与上游声明
 
 本项目不会把 ProjectClash 上游源码伪装成自有代码。上游客户端、Clash Kernel 和 Adapter 的许可证、NOTICE、第三方依赖声明以各自仓库为准；当前官方项目使用 GPL-3.0。分发编译产物时，请保留其许可证与署名，并确保满足 GPL-3.0 对对应源代码提供的要求。详见 `THIRD_PARTY_NOTICES.md`。
+
+
+## 开发日志与重新发布兼容性
+
+`dev-session.py` 支持旧版开发日志：如果缺少会话元数据或 `## 完成摘要`，会在开始开发 / 检查时自动补齐。手动检查可运行：
+
+```bash
+python3 scripts/dev-session.py validate
+python3 scripts/dev-session.py status
+```
+
+`prepare-republish.py` 会在写入 Release Checklist、`RELEASE_REVISION` 和历史记录前先运行日志预检。若日志文件缺失，流程会失败且不修改发布状态。相关回归测试位于 `tests/test_governance.py`。

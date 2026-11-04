@@ -60,6 +60,14 @@ class GovernanceTests(unittest.TestCase):
             t=t.replace("- ASSET-SHA256-VERIFIED: no","- ASSET-SHA256-VERIFIED: yes")
             t=t.replace("- ONLINE-ASSETS-VERIFIED: no","- ONLINE-ASSETS-VERIFIED: yes")
             check.write_text(t)
+            journal=check.parent/"DEVELOPMENT-JOURNAL.md"
+            journal_text=journal.read_text(encoding="utf-8")
+            journal_text=re.sub(r"(?m)^##[ \t]+完成摘要(?:[ \t].*)?\n?", "", journal_text)
+            journal_text=re.sub(
+                r"(?m)^<!-- DEVELOPMENT-(?:SESSION-STATUS|LAST-CHECKPOINT|COMPLETION-SOURCE):[^>]*-->\n?",
+                "", journal_text
+            )
+            journal.write_text(journal_text,encoding="utf-8")
             r=self.run_cmd(sys.executable,"scripts/prepare-republish.py","--mode","revision","--reason","发布后补充代码","--write",cwd=c)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr)
             self.assertEqual((c/"RELEASE_REVISION").read_text().strip(),"1")
@@ -67,6 +75,29 @@ class GovernanceTests(unittest.TestCase):
             self.assertIn("REPUBLISH-MODE: revision",u)
             self.assertIn(f"RELEASE-TAG: v{v}-r1",u)
             self.assertTrue((check.parent/"REPUBLISH-HISTORY.md").is_file())
+            repaired=journal.read_text(encoding="utf-8")
+            self.assertIn("## 完成摘要",repaired)
+            self.assertIn("DEVELOPMENT-SESSION-STATUS: active",repaired)
+            self.assertIn("DEVELOPMENT-LAST-CHECKPOINT: CP-003",repaired)
+            self.assertIn("DEVELOPMENT-COMPLETION-SOURCE: pending",repaired)
+            self.assertIn("开始/重新打开开发",repaired)
+
+    def test_republish_preflight_does_not_mutate_release_when_journal_missing(self):
+        with tempfile.TemporaryDirectory() as td:
+            c=Path(td)/"repo"; shutil.copytree(ROOT,c,ignore=IGNORE)
+            v=(c/"VERSION").read_text().strip()
+            check=c/"docs/releases"/f"v{v}"/"RELEASE-CHECKLIST.md"
+            original=check.read_text(encoding="utf-8")
+            check.write_text(original.replace("RELEASE-ARCHIVE-STATUS: pending",
+                                              "RELEASE-ARCHIVE-STATUS: complete"),encoding="utf-8")
+            journal=check.parent/"DEVELOPMENT-JOURNAL.md"
+            journal.unlink()
+            r=self.run_cmd(sys.executable,"scripts/prepare-republish.py","--mode","revision",
+                           "--reason","验证 preflight", "--write",cwd=c)
+            self.assertNotEqual(r.returncode,0)
+            self.assertEqual((c/"RELEASE_REVISION").read_text().strip(),"0")
+            self.assertIn("RELEASE-ARCHIVE-STATUS: complete",check.read_text(encoding="utf-8"))
+            self.assertFalse((check.parent/"REPUBLISH-HISTORY.md").exists())
 
     def test_disposition_closes_unreleased_without_lock(self):
         with tempfile.TemporaryDirectory() as td:
