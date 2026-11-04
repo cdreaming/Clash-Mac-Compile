@@ -14,8 +14,8 @@ Sourcetree
       └─ Build five-slice Clash.xcframework
   → Client configure.py
       ├─ Generate Xcode project
-      └─ Build universal macOS CLI helper
-  → xcodebuild ClashmacOS (Release, arm64 + x86_64)
+      └─ Build macOS CLI helper (arm64 target)
+  → xcodebuild ClashmacOS (Release, arm64 only)
   → Clash.app
   → ZIP + BUILD-METADATA.json
   → GitHub Actions Artifact

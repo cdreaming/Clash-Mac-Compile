@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.2`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.3`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
@@ -10,7 +10,9 @@
 - Go 工具链：GitHub Actions 安装 `1.26.10`，构建脚本启用 `GOTOOLCHAIN=auto`
 - Xcode Scheme：`ClashmacOS`
 - 构建配置：Release
-- 目标架构：`arm64` + `x86_64`
+- Xcode 并行编译任务：最多 2；Target 级并行关闭
+- Xcode 并行任务：最多 2；Target 级并行构建关闭
+- 目标架构：`arm64`（Apple Silicon only）
 - 初始签名策略：无签名构建（`CODE_SIGNING_ALLOWED=NO`）
 
 ## 构建入口
@@ -25,7 +27,7 @@
 
 ## 构建产物
 
-- `Clash_Mac_Compile-vX.Y.Z-macos-universal.zip`
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64.zip`
 - `BUILD-METADATA.json`
 
 GitHub Actions Artifact 默认保留 14 天。正式 Release 资产由 Release workflow 长期保存在 GitHub Release 中。

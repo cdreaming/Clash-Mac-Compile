@@ -29,3 +29,9 @@ python3 scripts/build-ai-handoff.py
 ```
 
 完整规则见 `.ai/AI-START-HERE.md`。
+
+## v0.0.3 构建约束
+
+- 本版只构建 Apple Silicon `arm64`；不要重新加入 `x86_64`，除非用户明确要求并创建新版本。
+- Xcode 并行任务默认最多 2；不要设置 `cancel-in-progress: true`。
+- 构建日志必须保留 Xcode build timing summary 和 Runner 资源诊断。

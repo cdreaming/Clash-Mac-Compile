@@ -21,7 +21,7 @@
 
 打开成功的 workflow run，在页面底部 Artifacts 下载：
 
-- `Clash_Mac_Compile-vX.Y.Z-macos-universal.zip`
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64.zip`
 - `BUILD-METADATA.json`
 
 Artifact 默认保留 14 天。需要长期保存时，创建正式 Release。
@@ -33,3 +33,7 @@ Artifact 默认保留 14 天。需要长期保存时，创建正式 Release。
 ## Runner 与费用
 
 `xcode-27` 是 GitHub macOS Runner 镜像的预览标签。macOS Runner 可能消耗 GitHub Actions 分钟或产生额外计费，请在 GitHub Billing / Actions 页面确认账户额度与费用。
+
+## v0.0.3 构建资源策略
+
+v0.0.3 只生成 Apple Silicon arm64 APP。Xcode 并行任务数默认为 2，构建工作流不再自动取消同一分支上正在执行的任务，超时设为 240 分钟。

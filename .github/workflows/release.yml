@@ -37,7 +37,7 @@ jobs:
   release:
     name: Build and publish macOS release
     runs-on: xcode-27
-    timeout-minutes: 180
+    timeout-minutes: 240
 
     steps:
       - name: Checkout source
@@ -111,6 +111,8 @@ jobs:
         run: python3 scripts/build-release.py
 
       - name: Build native macOS app
+        env:
+          CLASH_BUILD_JOBS: "2"
         run: bash scripts/build-macos-app.sh --output build/release
 
       - name: Attach macOS app and build metadata

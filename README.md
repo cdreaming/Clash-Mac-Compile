@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.2`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.3`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -35,12 +35,12 @@
 3. 检出官方 Clash-Client 指定版本。
 4. 执行官方 `scripts/bootstrap.py`，按其 `Dependencies.lock.json` 获取并编译 Clash.xcframework 与 Adapter。
 5. 执行官方 `scripts/configure.py`，生成 Xcode 工程并编译 macOS CLI helper。
-6. 使用 `ClashmacOS` Scheme、Release 配置和 `arm64 + x86_64` 架构构建。
+6. 使用 `ClashmacOS` Scheme、Release 配置，仅构建 `arm64`（Apple Silicon）。Xcode 最大并行任务数限制为 2，并关闭 Target 级并行构建，以降低 Runner 内存压力。
 7. 将 `Clash.app` 打成 ZIP，并上传为 GitHub Actions Artifact。
 
 构建成功后，在 GitHub 仓库的 **Actions → 对应运行记录 → Artifacts** 下载：
 
-- `Clash_Mac_Compile-vX.Y.Z-macos-universal.zip`
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64.zip`
 - `BUILD-METADATA.json`（记录实际上游提交、内核/Adapter 锁定版本及构建环境）
 
 ## Sourcetree 上传步骤
@@ -59,10 +59,10 @@
 `VERSION` 是项目版本唯一事实源。每一轮功能、脚本或构建配置改动都应提升项目版本，不要复用已发布版本：
 
 ```bash
-python3 scripts/prepare-version.py --version 0.0.2 --risk L2 --write
+python3 scripts/prepare-version.py --version 0.0.4 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 仅生成 Apple Silicon arm64 产物。
 
 ## 上游版本可复现性
 
@@ -76,7 +76,7 @@ Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 
 
 ## 签名与运行限制
 
-第一版使用 `CODE_SIGNING_ALLOWED=NO`，目标是验证原生 APP 的编译和产物打包，不需要把 Apple Developer 证书放入仓库。
+当前版本使用 `CODE_SIGNING_ALLOWED=NO`，目标是验证原生 APP 的编译和产物打包，不需要把 Apple Developer 证书放入仓库。
 
 **无签名 ZIP 不等于可完整安装使用的 VPN 客户端。** 正常安装、Network Extension / Packet Tunnel、App Groups、iCloud 等受保护能力需要你自己的 Apple Developer Team、证书和 Provisioning Profile。此版本不会伪造签名、公证或 VPN 实机测试结果。
 
@@ -84,7 +84,7 @@ Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 
 
 ## 正式 Release
 
-正式 Release 采用 `vX.Y.Z` tag。Release workflow 在 macOS Runner 上重新构建 APP，将项目源码包、APP ZIP、构建元数据和 SHA-256 一起上传，并执行线上资产校验。
+正式 Release 采用 `vX.Y.Z` tag。Release workflow 在 macOS Runner 上重新构建 APP，将项目源码包、arm64 APP ZIP、构建元数据和 SHA-256 一起上传，并执行线上资产校验。
 
 本版已经将 `UPSTREAM_CLIENT_REF` 固定为完整 commit SHA。main CI 与 v0.0.2 Release 均使用相同的官方 Client 源码。
 

@@ -32,10 +32,18 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("scripts/bootstrap.py", script)
         self.assertIn("scripts/configure.py", script)
         self.assertIn("ClashmacOS", script)
-        self.assertIn('ARCHS="arm64 x86_64"', script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
+        self.assertIn("ARCHS=arm64", script)
+        self.assertIn("ONLY_ACTIVE_ARCH=YES", script)
+        self.assertIn('-jobs "$BUILD_JOBS"', script)
+        self.assertIn("lipo -verify_arch arm64", script)
+        self.assertNotIn("x86_64", script)
         self.assertIn("runs-on: xcode-27", workflow)
         self.assertIn("actions/upload-artifact@", workflow)
+        self.assertIn("macos-arm64", workflow)
+        self.assertNotIn("cancel-in-progress: true", workflow)
+        self.assertIn("timeout-minutes: 240", workflow)
+        self.assertIn('CLASH_BUILD_JOBS: "2"', workflow)
         self.assertIn('go-version: "1.26.10"', workflow)
 
 
@@ -73,16 +81,16 @@ class ProjectTests(unittest.TestCase):
             (dist / "validation.md").write_text("validation\n", encoding="utf-8")
             manifest = {
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.0.1",
+                "project_version": "0.0.3",
                 "assets": ["project-source.zip", "validation.md"]
             }
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.0.1-macos-universal.zip").write_bytes(b"app zip")
+            (build / "Clash_Mac_Compile-v0.0.3-macos-arm64.zip").write_bytes(b"app zip")
             (build / "BUILD-METADATA.json").write_text('{"client_commit":"abc"}\n', encoding="utf-8")
 
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.0.1"
+                "--dist", str(dist), "--source", str(build), "--version", "0.0.3"
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

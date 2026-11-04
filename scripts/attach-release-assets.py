@@ -28,7 +28,7 @@ def main() -> int:
     if not manifest_path.is_file():
         raise RuntimeError("RELEASE-MANIFEST.json missing; run scripts/build-release.py first")
 
-    zip_name = f"Clash_Mac_Compile-v{args.version}-macos-universal.zip"
+    zip_name = f"Clash_Mac_Compile-v{args.version}-macos-arm64.zip"
     required = [source / zip_name, source / "BUILD-METADATA.json"]
     for item in required:
         if not item.is_file():

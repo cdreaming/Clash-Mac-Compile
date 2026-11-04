@@ -10,15 +10,11 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: macos-build-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
-    name: Build ClashmacOS (Universal)
+    name: Build ClashmacOS (Apple Silicon arm64)
     runs-on: xcode-27
-    timeout-minutes: 180
+    timeout-minutes: 240
 
     steps:
       - name: Checkout build project
@@ -52,6 +48,8 @@ jobs:
           python3 scripts/check-build-config.py
 
       - name: Build native macOS app
+        env:
+          CLASH_BUILD_JOBS: "2"
         run: |
           bash scripts/build-macos-app.sh --output build/ci
 
@@ -64,9 +62,9 @@ jobs:
       - name: Upload macOS app
         uses: actions/upload-artifact@v4
         with:
-          name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-universal-${{ github.sha }}
+          name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-${{ github.sha }}
           path: |
-            build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-universal.zip
+            build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64.zip
             build/ci/BUILD-METADATA.json
             build/ci/SHA256SUMS.txt
           if-no-files-found: error

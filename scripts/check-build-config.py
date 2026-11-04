@@ -39,15 +39,35 @@ def main() -> int:
             raise RuntimeError(f"Required build file missing: {path.relative_to(ROOT)}")
 
     script_text = build_script.read_text(encoding="utf-8")
-    for required in ("ProjectClash/Clash-Client.git", "scripts/bootstrap.py",
-                     "scripts/configure.py", "ClashmacOS", "CODE_SIGNING_ALLOWED=NO",
-                     'ARCHS="arm64 x86_64"'):
-        if required not in script_text:
-            raise RuntimeError(f"Build script is missing required step: {required}")
+    required_script_tokens = (
+        "ProjectClash/Clash-Client.git",
+        "scripts/bootstrap.py",
+        "scripts/configure.py",
+        "ClashmacOS",
+        "CODE_SIGNING_ALLOWED=NO",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        '-jobs "$BUILD_JOBS"',
+        "lipo -verify_arch arm64",
+        "CLASH_BUILD_JOBS",
+    )
+    for token in required_script_tokens:
+        if token not in script_text:
+            raise RuntimeError(f"Build script is missing required step: {token}")
+    if "x86_64" in script_text:
+        raise RuntimeError("This version must build Apple Silicon arm64 only")
 
     workflow_text = workflow.read_text(encoding="utf-8")
+    if "cancel-in-progress: true" in workflow_text:
+        raise RuntimeError("Build workflow must not cancel an in-progress build automatically")
+    if "macos-arm64" not in workflow_text:
+        raise RuntimeError("Build workflow must publish an arm64-only artifact")
     if "runs-on: xcode-27" not in workflow_text:
         raise RuntimeError("Build workflow must use the xcode-27 macOS runner")
+    if "timeout-minutes: 240" not in workflow_text:
+        raise RuntimeError("Build workflow timeout must be 240 minutes")
+    if 'CLASH_BUILD_JOBS: "2"' not in workflow_text:
+        raise RuntimeError("Build workflow must limit Xcode parallel jobs to 2")
     if "actions/upload-artifact@" not in workflow_text:
         raise RuntimeError("Build workflow must upload its build artifact")
 

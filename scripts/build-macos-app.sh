@@ -26,6 +26,7 @@ fi
 VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 CLIENT_REF="$(tr -d '[:space:]' < "$ROOT/UPSTREAM_CLIENT_REF")"
 BUILD_NUMBER="${GITHUB_RUN_NUMBER:-1}"
+BUILD_JOBS="${CLASH_BUILD_JOBS:-2}"
 
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid VERSION: $VERSION" >&2; exit 2; }
 [[ "$CLIENT_REF" =~ ^[A-Za-z0-9._/-]+$ && "$CLIENT_REF" != -* ]] || {
@@ -33,6 +34,7 @@ BUILD_NUMBER="${GITHUB_RUN_NUMBER:-1}"
   exit 2
 }
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || { echo "Invalid build number" >&2; exit 2; }
+[[ "$BUILD_JOBS" =~ ^[1-4]$ ]] || { echo "CLASH_BUILD_JOBS must be between 1 and 4" >&2; exit 2; }
 
 if [[ "$OUTPUT_DIR" != /* ]]; then OUTPUT_DIR="$ROOT/$OUTPUT_DIR"; fi
 mkdir -p "$OUTPUT_DIR"
@@ -49,6 +51,12 @@ fi
 export GOTOOLCHAIN=auto
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
 
+echo "==> Host diagnostics"
+uname -a
+echo "CPU cores: $(sysctl -n hw.ncpu)"
+echo "Memory bytes: $(sysctl -n hw.memsize)"
+echo "Build jobs: $BUILD_JOBS"
+echo "Target architecture: arm64 only"
 echo "==> Xcode"
 xcodebuild -version
 echo "==> Go"
@@ -64,6 +72,13 @@ git -C "$CLIENT_DIR" checkout --detach FETCH_HEAD
 CLIENT_SHA="$(git -C "$CLIENT_DIR" rev-parse HEAD)"
 [[ "$CLIENT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Unable to resolve upstream Client SHA" >&2; exit 1; }
 
+if [[ "$CLIENT_SHA" != "$CLIENT_REF" ]]; then
+  echo "ERROR: fetched Client commit does not match the pinned UPSTREAM_CLIENT_REF" >&2
+  echo "Expected: $CLIENT_REF" >&2
+  echo "Actual:   $CLIENT_SHA" >&2
+  exit 1
+fi
+
 echo "==> Prepare pinned Clash Kernel and Adapter SDK"
 python3 -m venv "$CLIENT_DIR/.build/python-env"
 # shellcheck disable=SC1091
@@ -71,19 +86,21 @@ source "$CLIENT_DIR/.build/python-env/bin/activate"
 python3 -m pip install --disable-pip-version-check PyYAML
 python3 "$CLIENT_DIR/scripts/bootstrap.py"
 
-echo "==> Generate Xcode project and build the universal CLI helper"
+echo "==> Generate Xcode project and build the arm64 CLI helper"
 python3 "$CLIENT_DIR/scripts/configure.py" --bundle-base com.cdreaming.clash
 
-echo "==> Build native macOS app (unsigned universal)"
+echo "==> Build native macOS app (unsigned, arm64 only, limited parallelism)"
 xcodebuild \
   -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj" \
   -scheme ClashmacOS \
   -configuration Release \
-  -destination 'platform=macOS' \
+  -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$DERIVED_DATA" \
+  -jobs "$BUILD_JOBS" \
+  -showBuildTimingSummary \
   CODE_SIGNING_ALLOWED=NO \
-  ARCHS="arm64 x86_64" \
-  ONLY_ACTIVE_ARCH=NO \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=YES \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   CLASH_SOURCE_REVISION="$CLIENT_SHA" \
@@ -106,17 +123,17 @@ with open(sys.argv[1], "rb") as f:
     print(plistlib.load(f)["CFBundleExecutable"])
 PY
 )"
-lipo -verify_arch arm64 x86_64 "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE"
+lipo -verify_arch arm64 "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE"
 
-ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-universal.zip"
+ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64.zip"
 ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
-python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" "$OUTPUT_DIR/BUILD-METADATA.json" <<'PY'
+python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
-root, client, client_sha, version, build_number, artifact, output = sys.argv[1:]
+root, client, client_sha, version, build_number, artifact, output, build_jobs = sys.argv[1:]
 client = Path(client)
 lock = json.loads((client / "Dependencies.lock.json").read_text(encoding="utf-8"))
 def cmd(*args):
@@ -128,7 +145,9 @@ metadata = {
     "platform": "macOS",
     "scheme": "ClashmacOS",
     "configuration": "Release",
-    "architectures": ["arm64", "x86_64"],
+    "architectures": ["arm64"],
+    "build_jobs": int(build_jobs),
+    "parallelize_targets": False,
     "signing": "disabled",
     "artifact": artifact,
     "client_repository": "https://github.com/ProjectClash/Clash-Client",
@@ -155,4 +174,5 @@ PY
 echo "Build complete:"
 echo "  APP: $ZIP_PATH"
 echo "  Metadata: $OUTPUT_DIR/BUILD-METADATA.json"
+echo "  Architecture: arm64"
 echo "  Signing: disabled"

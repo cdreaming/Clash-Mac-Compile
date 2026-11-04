@@ -1,5 +1,14 @@
 # Version Changelog
 
+## v0.0.3
+
+- 将 macOS 构建目标收敛为 Apple Silicon `arm64`，暂不构建 Intel `x86_64`。
+- 将 Xcode 并行编译任务限制为 2，并使用 `ONLY_ACTIVE_ARCH=YES`。
+- 移除 Build workflow 的自动取消并发策略，避免新提交自动终止进行中的构建。
+- 将构建超时调整为 240 分钟，增加主机资源诊断和构建耗时摘要。
+- 更新 APP Artifact 命名为 `macos-arm64`，同步 Release 资产打包与校验。
+- 增加 arm64 构建契约检查和回归测试。
+
 ## v0.0.2
 
 - 将 ProjectClash/Clash-Client 固定到官方 commit `e3e647283b1593a61dba622f13cd499deeda9b8b`。
