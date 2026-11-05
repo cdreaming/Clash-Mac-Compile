@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.8`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.9`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -62,7 +62,7 @@
 python3 scripts/prepare-version.py --version 0.0.9 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题。
 
 ## 上游版本可复现性
 

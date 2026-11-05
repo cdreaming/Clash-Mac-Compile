@@ -25,7 +25,8 @@
     "docs/releases/v0.0.6/": "当前项目版本归档目录；保存无签名开发、验证、发布和经验记录。",
     "docs/releases/v0.0.7/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。",
     "docs/releases/v0.0.8/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。",
-    "docs/local-development/": "开发者本机专用工具和本地自签名代码签名说明；私钥不进入仓库。"
+    "docs/local-development/": "开发者本机专用工具和本地自签名代码签名说明；私钥不进入仓库。",
+    "docs/releases/v0.0.9/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。"
   },
   "files": {
     ".ai/AI-START-HERE.md": "AI 每轮开工、上游版本锁定、验证和收尾入口。",
@@ -110,10 +111,10 @@
     "UPSTREAM_CLIENT_REF": "ProjectClash/Clash-Client 固定提交：e3e647283b1593a61dba622f13cd499deeda9b8b；正式 Release 的不可变上游版本事实源。",
     "docs/development/UPSTREAM-BUILD.md": "ProjectClash 三仓职责、官方 bootstrap/configure、Go 工具链和 arm64 构建说明。",
     "docs/github/GITHUB-ACTIONS-SETUP.md": "Sourcetree 上传、无签名 GitHub Actions 构建、每周上游自动发布、权限和 Releases 下载操作。",
-    "scripts/attach-release-assets.py": "将无签名 arm64 APP ZIP 与构建元数据加入 GitHub Release，生成资产清单和 SHA-256，并写明 VPN 授权限制。",
-    "scripts/build-macos-app.sh": "arm64 Swift -O 构建脚本；默认 unsigned，显式 --signing-mode local 时用本机 Keychain 自签名身份签名并生成本地开发报告。",
+    "scripts/attach-release-assets.py": "Release 资产附加脚本；只接受 unsigned APP，严格解析 BUILD-METADATA.json / RELEASE-MANIFEST.json，JSON 错误输出文件路径和行列位置。",
+    "scripts/build-macos-app.sh": "arm64 Swift -O 构建脚本；默认 unsigned，显式 local 模式使用本机 Keychain 自签名身份；BUILD-METADATA.json 写入真实换行并格式化 Xcode 版本。",
     "scripts/check-build-config.py": "校验完整上游 SHA、arm64 Swift -O 无签名构建，以及不依赖 Apple Developer Secrets 的 Release / Weekly 工作流。",
-    "tests/test_project.py": "项目回归测试；覆盖 v0.0.8 本地自签名构建、GitHub 无签名隔离、Release 资产门禁和私钥防泄漏。",
+    "tests/test_project.py": "v0.0.9 项目回归测试；包含本地签名隔离、metadata writer 严格 JSON、Release JSON 错误定位、每周版本递增和私钥防泄漏。",
     "docs/releases/v0.0.2/DEVELOPMENT-JOURNAL.md": "v0.0.2 开发日志；记录修复可移动上游引用、Go 工具链同步和本地验证结果。",
     "docs/releases/v0.0.2/RELEASE-CHECKLIST.md": "v0.0.2 发布检查表；记录候选门禁状态和待 GitHub 云端验证的发布证据。",
     "docs/releases/v0.0.2/RELEASE-NOTES.md": "v0.0.2 发布说明；说明固定 Client SHA、Go 1.26.10 和 Release 修复。",
@@ -158,13 +159,19 @@
     "docs/releases/v0.0.8/DEVELOPMENT-JOURNAL.md": "v0.0.8 开发日志；记录本地自签名构建、GitHub unsigned 隔离和授权边界。",
     "docs/releases/v0.0.8/RELEASE-CHECKLIST.md": "当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。",
     "docs/releases/v0.0.8/RELEASE-NOTES.md": "v0.0.8 本地自签名开发模式说明；GitHub 仍无签名，明确 VPN 授权边界。",
-    "docs/releases/v0.0.8/VALIDATION-REPORT.md": "v0.0.8 验证报告；区分本地静态检查、待执行的 macOS Keychain/Xcode 签名与 VPN 实测。",
+    "docs/releases/v0.0.8/VALIDATION-REPORT.md": "v0.0.8 验证报告；记录本地签名开发模式、JSON Extra data 根因修复和实际回归测试结果。",
     "docs/releases/v0.0.8/RELEASE-EXPERIENCE-REPORT.md": "v0.0.8 发布经验；记录本地自签名与 GitHub 无签名发布隔离策略。",
     "docs/release-lessons/v0.0.8.md": "v0.0.8 发布经验；记录自签名身份与 Apple 授权 entitlement 的边界及私钥防泄漏规则。",
     "scripts/build-local-signed-app.sh": "本机自签名构建入口；先检查 Keychain identity，再调用 build-macos-app.sh 的 local 模式，不在 GitHub Actions 中运行。",
     "scripts/check-local-signing-identity.sh": "通过 security find-identity 检查本地 Clash_Mac_Compile Local Development 自签名身份是否在 macOS Keychain 中可用。",
     "scripts/verify-local-signed-app.sh": "使用 codesign 验证主 APP 与嵌套 App Extension 的本地签名，并生成不宣称 Apple entitlement 授权的 JSON 报告。",
-    "docs/local-development/LOCAL-CODE-SIGNING.md": "本地自签名 P12 导入、Keychain 检查、Xcode 本地签名构建、签名验证及 Apple VPN entitlement 限制。"
+    "docs/local-development/LOCAL-CODE-SIGNING.md": "本地自签名 P12 导入、Keychain 检查、Xcode 本地签名构建、签名验证及 Apple VPN entitlement 限制。",
+    "docs/releases/v0.0.9/DEVELOPMENT-JOURNAL.md": "v0.0.9 开发日志；记录 JSON Extra data 根因、修复和回归验证。",
+    "docs/releases/v0.0.9/RELEASE-CHECKLIST.md": "当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。",
+    "docs/releases/v0.0.9/RELEASE-NOTES.md": "v0.0.9 发布说明；修复 BUILD-METADATA.json 尾部字面量转义导致 Release 附件失败的问题。",
+    "docs/releases/v0.0.9/VALIDATION-REPORT.md": "v0.0.9 验证报告；记录 metadata writer 严格 JSON 回归、Release 错误定位及尚未执行的云端验证。",
+    "docs/releases/v0.0.9/RELEASE-EXPERIENCE-REPORT.md": "v0.0.9 发布经验；记录字面量换行后缀导致 JSON Extra data 的根因与防回归方法。",
+    "docs/release-lessons/v0.0.9.md": "v0.0.9 发布经验；JSON 序列化结果必须通过真实生成和严格解析验证。"
   },
   "folder_patterns": [],
   "file_patterns": [

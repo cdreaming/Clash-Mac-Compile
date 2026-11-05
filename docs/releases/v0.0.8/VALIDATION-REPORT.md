@@ -20,11 +20,12 @@
 | CI / Build / Release / Weekly workflow YAML | PASS，4 个 workflow |
 | Repository Structure 检查 | PASS |
 | Source Manifest 检查 | PASS |
-| `python3 -m unittest -q tests.test_project` | PASS，13 tests |
+| `python3 -m unittest -q tests.test_project` | PASS，14 tests（含 metadata writer 严格 JSON 回归） |
 | `python3 -m unittest -q tests.test_packaging` | PASS，6 tests |
 | 关键治理回归测试 | PASS，4 项（development governance、structure current、revision republish、preflight atomicity） |
 | `python3 scripts/dev-session.py validate` | PASS |
 | `python3 scripts/build-release.py` | PASS；生成 v0.0.8 source ZIP |
+| metadata writer 专项回归 | PASS；执行嵌入式生成器并严格解析 JSON，验证末尾真实换行及多行 Xcode 版本转换 |
 | ZIP CRC / SHA-256 / 敏感私钥文件扫描 | PASS；未发现 P12 / PFX / KEY / PEM / Provisioning Profile |
 
 关键治理回归测试包括：开发治理、Repository Structure、已发布版本 revision 重发布、缺少开发日志时预检不得半更新状态。完整 `tests.test_governance` 套件在当前执行环境超过 60 秒限制，未标记为通过。
@@ -39,6 +40,12 @@
 - GitHub Build / Release / Weekly 不读取本地 Keychain 或 P12。
 - Release 资产附加只接受 unsigned APP，拒绝 local-development-only 产物。
 - 源码打包拒绝 `.p12`、`.pfx`、`.key`、`.pem`、`.mobileprovision` 和 `.provisionprofile`。
+
+## 本次 Extra data 故障修复
+
+GitHub 用户日志显示 `attach-release-assets.py` 在解析 `BUILD-METADATA.json` 时出现 `JSONDecodeError: Extra data`。根因是构建脚本中的 Python heredoc 使用 `json.dumps(...) + "\\n"`，写入的是两个字符反斜杠和 n，而不是真实换行。修复为 `json.dumps(...) + "\n"`。同时将 Xcode 版本字符串转换改为替换真实换行。`attach-release-assets.py` 现在会在 JSON 无效时报告具体文件、行、列和字符位置。
+
+新增测试直接执行构建脚本内的 metadata writer（用临时工具 stub 替代 Xcode / Go / date），再使用 `json.loads` 解析实际输出，防止该问题回归。
 
 ## 尚未执行 / 未验证
 
@@ -62,4 +69,4 @@ Swift `-O` 是运行速度优先的编译策略，不等于已经实测性能提
 
 ## 结论
 
-v0.0.8 本地签名开发路径、GitHub 无签名隔离和敏感私钥保护已通过源码级测试。用户 Mac 上的实际 Xcode / Keychain 签名仍需在 macOS 实机验证；VPN 系统授权不能由本地自签名获得。
+v0.0.8 本地签名开发路径、GitHub 无签名隔离、敏感私钥保护和 BUILD-METADATA.json Extra data 修复已通过源码级测试。用户 Mac 上的实际 Xcode / Keychain 签名仍需在 macOS 实机验证；VPN 系统授权不能由本地自签名获得。

@@ -263,11 +263,11 @@ metadata = {
     "adapter_commit": lock["adapter"]["revision"],
     "gomobile": lock["gomobile"],
     "gobind": lock["gobind"],
-    "xcode_version": cmd("xcodebuild", "-version").replace("\\n", " / "),
+    "xcode_version": cmd("xcodebuild", "-version").replace("\n", " / "),
     "go_version": cmd("go", "version"),
     "build_date_utc": cmd("date", "-u", "+%Y-%m-%dT%H:%M:%SZ")
 }
-Path(output).write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+Path(output).write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
 (

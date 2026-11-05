@@ -1,7 +1,7 @@
 # Clash_Mac_Compile v0.0.8 Development Journal
 
 <!-- DEVELOPMENT-SESSION-STATUS: complete -->
-<!-- DEVELOPMENT-LAST-CHECKPOINT: CP-004 -->
+<!-- DEVELOPMENT-LAST-CHECKPOINT: CP-005 -->
 <!-- DEVELOPMENT-COMPLETION-SOURCE: ai-delivery -->
 
 ## 当前目标
@@ -48,6 +48,13 @@
 - 已完成：v0.0.8 源码 ZIP 已生成；13 项项目测试、6 项打包测试和 4 项关键治理测试通过；源码 ZIP 未包含 P12 / PFX / 私钥 / Provisioning Profile。
 - 下一步：上传 Sourcetree 后验证 GitHub arm64 云端编译；在用户 Mac 导入本地证书后执行 Xcode 本地签名实验。
 - 验证状态：源码包 ZIP 完整性与 SHA-256 通过；真实 macOS Keychain / Xcode 签名未执行。
+
+### CP-005 · Release 元数据 JSON 修复
+
+- 时间：2026-11-05
+- 已完成：定位 BUILD-METADATA.json 写入器将字面量 `\\n` 写到 JSON 文件末尾，修复为真实换行；增加执行真实元数据生成器的回归测试；Release JSON 解析错误补充路径与行列信息。
+- 下一步：重新上传修复版源码，验证 GitHub Actions 的 Attach macOS app and build metadata 步骤。
+- 验证状态：metadata writer 专项回归测试通过；完整项目 / 打包测试待最终运行；GitHub 云端验证尚未执行。
 
 ## 完成摘要
 

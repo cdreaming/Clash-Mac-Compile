@@ -17,6 +17,20 @@ def sha(path: Path) -> str:
     return digest.hexdigest()
 
 
+def load_json(path: Path, label: str) -> dict:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Invalid JSON in {label} ({path}): {exc.msg} "
+            f"at line {exc.lineno}, column {exc.colno}, character {exc.pos}. "
+            "Check that the file contains exactly one JSON object and no literal \\n suffix."
+        ) from exc
+    if not isinstance(value, dict):
+        raise RuntimeError(f"{label} must contain a JSON object: {path}")
+    return value
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Attach the unsigned arm64 macOS APP and metadata to a GitHub Release package"
@@ -39,13 +53,13 @@ def main() -> int:
         if not item.is_file():
             raise RuntimeError(f"Required macOS release asset missing: {item}")
 
-    metadata = json.loads((source / "BUILD-METADATA.json").read_text(encoding="utf-8"))
+    metadata = load_json(source / "BUILD-METADATA.json", "BUILD-METADATA.json")
     if metadata.get("distribution_mode") != "unsigned":
         raise RuntimeError("This project version only accepts an explicitly unsigned APP build.")
     if metadata.get("signing") != "disabled" or metadata.get("vpn_authorization_supported") is not False:
         raise RuntimeError("APP metadata must clearly identify disabled signing and unsupported VPN authorization.")
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = load_json(manifest_path, "RELEASE-MANIFEST.json")
     if manifest.get("project_version") != args.version:
         raise RuntimeError("Release manifest version does not match requested version")
 

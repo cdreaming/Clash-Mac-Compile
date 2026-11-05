@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.8`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.9`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
@@ -13,14 +13,17 @@
 - Swift 优化级别：`-O`（运行速度优先）
 - Xcode 并行编译任务：最多 2
 - 目标架构：`arm64`（Apple Silicon only）
-- 架构检查：`lipo -archs`（兼容 Xcode 27）
 
 ## 构建模式
 
-- GitHub Build / Release / Weekly Preview：默认无签名（`CODE_SIGNING_ALLOWED=NO`），不需要 Apple Developer Secrets。
+- GitHub Build / Release / Weekly Preview：默认无签名，不需要 Apple Developer Secrets。
 - 本地开发：可选 `local-self-signed`，使用开发者 Mac Keychain 中的 `Clash_Mac_Compile Local Development` identity。
 - 本地自签名产物只用于开发测试，不上传 GitHub Releases。
 - 自签名不提供 Apple Team ID、Apple 授权 entitlement、公证或 VPN / Packet Tunnel 授权。
+
+## v0.0.9 Release 修复
+
+`BUILD-METADATA.json` 写入真实换行；Release 资产脚本严格解析 JSON 并报告具体错误位置。新增实际执行 metadata writer 的回归测试，防止 `JSONDecodeError: Extra data` 重现。
 
 ## 构建入口
 

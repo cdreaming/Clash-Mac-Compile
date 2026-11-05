@@ -1,5 +1,13 @@
 # Version Changelog
 
+## v0.0.9
+
+- 修复 v0.0.8 GitHub Release 附件阶段 `BUILD-METADATA.json` 因字面量 `\\n` 后缀而报 `JSONDecodeError: Extra data` 的问题。
+- 修复 Xcode 版本字段对真实换行的格式化。
+- 为 Release JSON 解析增加文件路径、行列和字符位置诊断。
+- 增加执行真实 metadata writer 并严格解析 JSON 的回归测试，以及无效 JSON 诊断测试。
+- 保留 v0.0.8 本地自签名开发模式；GitHub Build / Release / Weekly 继续无签名，私钥不进入源码包。
+
 ## v0.0.8
 
 - 增加本地自签名开发模式，使用单独提供的 `Clash_Mac_Compile Local Development` identity 在开发 Mac 上验证 Xcode 代码签名。

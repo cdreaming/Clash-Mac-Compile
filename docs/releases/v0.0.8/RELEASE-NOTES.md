@@ -16,6 +16,8 @@ v0.0.8 基于 v0.0.7，增加本地自签名代码签名开发模式。用户无
 - 本地签名 APP 命名为 `Clash_Mac_Compile-v0.0.8-macos-arm64-local-signed.zip`。
 - GitHub Releases 继续只上传无签名 APP，拒绝 local-development-only 资产。
 - 源码打包增加 `.p12`、`.pfx`、Provisioning Profile 等敏感文件拦截，防止私钥进入源码包。
+- 修复 APP 构建元数据写入器把字面量 `\\n` 追加到 JSON 末尾、导致 Release 资产附加阶段报 `Extra data` 的问题。
+- 增加回归测试：执行真实的嵌入式 metadata writer，并使用严格 JSON parser 解析输出；Release JSON 错误现在会指出文件路径和具体行列位置。
 
 ## 性能配置
 
