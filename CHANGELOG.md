@@ -1,5 +1,14 @@
 # Version Changelog
 
+## v0.1.3
+
+- 将 Build / Release / Weekly 的 macOS 构建和输出验证合并到同一个 GitHub Actions step，统一使用 GITHUB_WORKSPACE 下的绝对输出目录。
+- 构建脚本增加 `BUILD-SCRIPT-STATUS.txt` 和 `BUILD-RUN-CONTEXT.txt`，EXIT trap 记录真实退出码。
+- workflow 增加 `BUILD-WORKFLOW-STATUS.txt` 和 `BUILD-WORKFLOW-CONTEXT.txt`，EXIT trap 记录 step 最终状态。
+- 增加 always-run 构建结果报告，打印 `steps.build_app.outcome`、实际输出目录、文件清单和状态内容。
+- 输出验证器递归列出文件，先判断 build script 是否成功，再检查 APP ZIP、metadata、VPN report、checksums 和输出 manifest。
+- Release 附件脚本拒绝 build script 状态未知或退出码非零的构建。
+
 ## v0.1.2
 
 - 修复 GitHub Actions Artifact 上传找不到 `build/ci` 文件的问题：构建脚本规范化输出目录，验证 APP ZIP、metadata、VPN report 和 SHA256SUMS。

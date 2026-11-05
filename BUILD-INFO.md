@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.2`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.3`）
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 上游客户端：`ProjectClash/Clash-Client`
 - 上游客户端 Ref：`e3e647283b1593a61dba622f13cd499deeda9b8b`
@@ -11,31 +11,33 @@
 - Swift optimization：`-O`
 - Xcode jobs：`2`
 
-## Build outputs
+## Build workflow
 
-Default GitHub build command:
+Build / Release / Weekly execute build and output verification in the same Actions step, using an absolute output path under `GITHUB_WORKSPACE`.
 
-```bash
-bash scripts/build-macos-app.sh --output build/ci
-```
+- Build workflow output: `${GITHUB_WORKSPACE}/build/ci`
+- Release / Weekly output: `${GITHUB_WORKSPACE}/build/release`
 
-The script resolves the output directory to an absolute path, prints it, verifies all required output files, and writes `BUILD-OUTPUT-MANIFEST.json`.
+## Persistent status and context
 
-Required unsigned outputs:
+- `BUILD-WORKFLOW-STATUS.txt`: final workflow step status and exit code.
+- `BUILD-WORKFLOW-CONTEXT.txt`: GitHub workspace, working directory, output directory and version.
+- `BUILD-SCRIPT-STATUS.txt`: build script final status and actual exit code.
+- `BUILD-RUN-CONTEXT.txt`: project root, working directory, output directory, runner and signing mode.
+
+Both workflow and build script use EXIT traps so failure evidence remains available.
+
+## Required outputs
 
 - `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`
 - `BUILD-METADATA.json`
 - `VPN-ARCHITECTURE-REPORT.json`
 - `SHA256SUMS.txt`
 - `BUILD-OUTPUT-MANIFEST.json`
+- `BUILD-SCRIPT-STATUS.txt`
+- `BUILD-RUN-CONTEXT.txt`
 
-Before Artifact upload or Release attachment:
-
-```bash
-python3 scripts/verify-build-outputs.py --directory build/ci --version X.Y.Z --mode unsigned
-```
-
-GitHub Build / Release / Weekly explicitly set `CLASH_SIGNING_MODE=unsigned`. Build workflow uploads the single directory `build/ci/` as one Artifact path.
+Before Release attachment, `verify-build-outputs.py` validates output files, version, signing mode and build script status.
 
 ## VPN architecture
 
@@ -54,7 +56,7 @@ GitHub Build / Release / Weekly explicitly set `CLASH_SIGNING_MODE=unsigned`. Bu
 - `ClashmacOSExtension-BuildSettings.json`
 - `ClashClient-project.system-extension.yml`
 
-Build / Release / Weekly upload linker diagnostics with `if: always()`.
+Build / Release / Weekly upload linker diagnostics and status/context with `if: always()`.
 
 ## Signing limitation
 

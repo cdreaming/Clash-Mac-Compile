@@ -111,17 +111,58 @@ jobs:
       - name: Build project source release
         run: python3 scripts/build-release.py
 
-      - name: Build unsigned native macOS app
+      - name: Build and verify native macOS app
+        id: build_app
+        shell: bash
         env:
           CLASH_BUILD_JOBS: "2"
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
           CLASH_SIGNING_MODE: "unsigned"
-        run: bash scripts/build-macos-app.sh --output build/release
-
-      - name: Verify macOS build outputs
+          BUILD_OUTPUT_DIR: ${{ github.workspace }}/build/release
         run: |
+          set -Eeuo pipefail
+          mkdir -p "$BUILD_OUTPUT_DIR"
+          printf 'status=started\\noutput_directory=%s\\n' "$BUILD_OUTPUT_DIR" > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-STATUS.txt"
+          printf 'workspace=%s\\nworking_directory=%s\\noutput_directory=%s\\nversion=%s\\n' \\
+            "$GITHUB_WORKSPACE" "$PWD" "$BUILD_OUTPUT_DIR" "$(tr -d '[:space:]' < VERSION)" \\
+            > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-CONTEXT.txt"
+          record_build_workflow_status() {
+            local status_code=$?
+            trap - EXIT
+            local status_name=failed
+            if [[ "$status_code" -eq 0 ]]; then status_name=success; fi
+            printf 'status=%s\\nexit_code=%s\\noutput_directory=%s\\n' \\
+              "$status_name" "$status_code" "$BUILD_OUTPUT_DIR" \\
+              > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-STATUS.txt"
+            exit "$status_code"
+          }
+          trap record_build_workflow_status EXIT
+          echo "GitHub workspace: $GITHUB_WORKSPACE"
+          echo "Build output directory: $BUILD_OUTPUT_DIR"
+          bash scripts/build-macos-app.sh --output "$BUILD_OUTPUT_DIR"
           VERSION="$(tr -d '[:space:]' < VERSION)"
-          python3 scripts/verify-build-outputs.py --directory build/release --version "$VERSION" --mode unsigned
+          python3 scripts/verify-build-outputs.py --directory "$BUILD_OUTPUT_DIR" --version "$VERSION" --mode unsigned
+
+      - name: Report build outcome and output directory
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build_app.outcome }}
+          BUILD_OUTPUT_DIR: ${{ github.workspace }}/build/release
+        shell: bash
+        run: |
+          echo "Build step outcome: $BUILD_OUTCOME"
+          echo "Build output directory: $BUILD_OUTPUT_DIR"
+          if [[ -d "$BUILD_OUTPUT_DIR" ]]; then
+            find "$BUILD_OUTPUT_DIR" -maxdepth 3 -type f -print
+          else
+            echo "Build output directory was not created."
+          fi
+          for status_file in BUILD-WORKFLOW-STATUS.txt BUILD-SCRIPT-STATUS.txt BUILD-RUN-CONTEXT.txt BUILD-WORKFLOW-CONTEXT.txt; do
+            if [[ -f "$BUILD_OUTPUT_DIR/$status_file" ]]; then
+              echo "==> $status_file"
+              cat "$BUILD_OUTPUT_DIR/$status_file"
+            fi
+          done
 
       - name: Upload Xcode linker diagnostics
         if: always()
@@ -135,6 +176,10 @@ jobs:
             build/release/ClashmacOSExtension-BuildSettings.json
             build/release/ClashmacOSExtension-BuildSettings.stderr.log
             build/release/ClashClient-project.system-extension.yml
+            build/release/BUILD-SCRIPT-STATUS.txt
+            build/release/BUILD-RUN-CONTEXT.txt
+            build/release/BUILD-WORKFLOW-STATUS.txt
+            build/release/BUILD-WORKFLOW-CONTEXT.txt
           if-no-files-found: ignore
           retention-days: 14
 

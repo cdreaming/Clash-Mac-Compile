@@ -65,8 +65,46 @@ mkdir -p "$OUTPUT_DIR"
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"
 echo "Build output directory: $OUTPUT_DIR"
 
+BUILD_SCRIPT_STATUS="$OUTPUT_DIR/BUILD-SCRIPT-STATUS.txt"
+BUILD_RUN_CONTEXT="$OUTPUT_DIR/BUILD-RUN-CONTEXT.txt"
+cat > "$BUILD_RUN_CONTEXT" <<EOF
+project=Clash_Mac_Compile
+version=$VERSION
+root=$ROOT
+working_directory=$PWD
+output_directory=$OUTPUT_DIR
+signing_mode=$SIGNING_MODE
+build_number=$BUILD_NUMBER
+runner_os=$(uname -s)
+runner_arch=$(uname -m)
+github_run_id=${GITHUB_RUN_ID:-local}
+github_run_number=${GITHUB_RUN_NUMBER:-local}
+EOF
+printf 'status=running\\nversion=%s\\noutput_directory=%s\\n' "$VERSION" "$OUTPUT_DIR" > "$BUILD_SCRIPT_STATUS"
+
+WORK_DIR=""
+cleanup_build() {
+  local build_exit_code=$?
+  trap - EXIT
+  if [[ "$build_exit_code" -eq 0 ]]; then
+    build_status="success"
+  else
+    build_status="failed"
+  fi
+  {
+    printf 'status=%s\\n' "$build_status"
+    printf 'exit_code=%s\\n' "$build_exit_code"
+    printf 'version=%s\\n' "$VERSION"
+    printf 'output_directory=%s\\n' "$OUTPUT_DIR"
+  } > "$BUILD_SCRIPT_STATUS"
+  if [[ -n "$WORK_DIR" && -d "$WORK_DIR" ]]; then
+    rm -rf "$WORK_DIR" || true
+  fi
+  exit "$build_exit_code"
+}
+trap cleanup_build EXIT
+
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/clash-mac-compile.XXXXXX")"
-trap 'rm -rf "$WORK_DIR"' EXIT
 CLIENT_DIR="$WORK_DIR/Clash-Client"
 DERIVED_DATA="$WORK_DIR/DerivedData"
 
@@ -332,6 +370,7 @@ PY
 (
   cd "$OUTPUT_DIR"
   ASSETS=("$ZIP_NAME" "BUILD-METADATA.json" "VPN-ARCHITECTURE-REPORT.json" \
+          "BUILD-RUN-CONTEXT.txt" \
           "XCODEBUILD.log" "LINKER-DIAGNOSTICS.txt" \
           "ClashClient-project.system-extension.yml" "ClashmacOSExtension-BuildSettings.json")
   if [[ -f "LOCAL-SIGNING-REPORT.json" ]]; then
@@ -350,6 +389,8 @@ required = [
     "BUILD-METADATA.json",
     "VPN-ARCHITECTURE-REPORT.json",
     "SHA256SUMS.txt",
+    "BUILD-SCRIPT-STATUS.txt",
+    "BUILD-RUN-CONTEXT.txt",
 ]
 missing = [name for name in required if not (output / name).is_file() or (output / name).stat().st_size == 0]
 if missing:

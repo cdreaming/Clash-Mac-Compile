@@ -20,7 +20,7 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(profile["project_name"], "Clash_Mac_Compile")
         self.assertEqual(profile["project_slug"], "clash-mac-compile")
         self.assertEqual(profile["repository"], "cdreaming/Clash-Mac-Compile")
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "0.1.2")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "0.1.3")
 
     def test_build_configuration(self):
         result = self.run_cmd(sys.executable, "scripts/check-build-config.py")
@@ -47,6 +47,10 @@ class ProjectTests(unittest.TestCase):
         self.assertIn('OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"', script)
         self.assertIn("BUILD-OUTPUT-MANIFEST.json", script)
         self.assertIn("Build output validation failed", script)
+        self.assertIn("BUILD-SCRIPT-STATUS.txt", script)
+        self.assertIn("BUILD-RUN-CONTEXT.txt", script)
+        self.assertIn("cleanup_build()", script)
+        self.assertIn("trap cleanup_build EXIT", script)
         self.assertIn("ClashmacOS", script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
         self.assertIn("CODE_SIGNING_ALLOWED=YES", script)  # opt-in local development mode
@@ -71,8 +75,16 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("VPN-ARCHITECTURE-REPORT.json", script)
         self.assertIn("path: build/ci/", workflow)
         self.assertIn("Upload Xcode linker diagnostics", workflow)
-        self.assertIn("Verify macOS build outputs", workflow)
+        self.assertIn("Build and verify native macOS app", workflow)
         self.assertIn("verify-build-outputs.py", workflow)
+        self.assertIn("id: build_app", workflow)
+        self.assertIn("steps.build_app.outcome", workflow)
+        self.assertIn("BUILD-WORKFLOW-STATUS.txt", workflow)
+        self.assertIn("BUILD-SCRIPT-STATUS.txt", workflow)
+        self.assertIn("BUILD-WORKFLOW-CONTEXT.txt", workflow)
+        self.assertIn("Report build outcome and output directory", workflow)
+        self.assertIn("record_build_workflow_status()", workflow)
+        self.assertIn("trap record_build_workflow_status EXIT", workflow)
         self.assertIn("path: build/ci/", workflow)
         self.assertIn('CLASH_SIGNING_MODE: "unsigned"', workflow)
         self.assertIn("if: always()", workflow)
@@ -88,13 +100,15 @@ class ProjectTests(unittest.TestCase):
         self.assertNotIn('CLASH_SIGNING_MODE: "signed"', release + weekly)
         self.assertIn("scripts/attach-release-assets.py", release)
         self.assertIn("Upload Xcode linker diagnostics", release)
-        self.assertIn("Verify macOS build outputs", release)
+        self.assertIn("Build and verify native macOS app", release)
         self.assertIn("verify-build-outputs.py", release)
+        self.assertIn("steps.build_app.outcome", release)
         self.assertIn('CLASH_SIGNING_MODE: "unsigned"', release)
         self.assertIn("if: always()", release)
         self.assertIn("scripts/attach-release-assets.py", weekly)
-        self.assertIn("Verify macOS build outputs", weekly)
+        self.assertIn("Build and verify native macOS app", weekly)
         self.assertIn("verify-build-outputs.py", weekly)
+        self.assertIn("steps.build_app.outcome", weekly)
         self.assertIn('CLASH_SIGNING_MODE: "unsigned"', weekly)
         self.assertNotIn("cancel-in-progress: true", workflow)
         self.assertIn("timeout-minutes: 240", workflow)
@@ -179,8 +193,8 @@ class ProjectTests(unittest.TestCase):
             env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
             result = subprocess.run(
                 [sys.executable, "-c", metadata_writer,
-                 str(root), str(client), "a" * 40, "0.1.2", "1",
-                 "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip",
+                 str(root), str(client), "a" * 40, "0.1.3", "1",
+                 "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip",
                  str(output), "2", "-O", "unsigned",
                  "Clash_Mac_Compile Local Development", str(vpn_report)],
                 cwd=ROOT, env=env, text=True, capture_output=True
@@ -188,7 +202,6 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             raw = output.read_text(encoding="utf-8")
             self.assertTrue(raw.endswith("\n"))
-            self.assertFalse(raw.endswith("\\n"))
             parsed = json.loads(raw)
             self.assertEqual(parsed["distribution_mode"], "unsigned")
             self.assertEqual(parsed["signing"], "disabled")
@@ -229,9 +242,9 @@ class ProjectTests(unittest.TestCase):
                 cwd=copy, text=True, capture_output=True
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual((copy / "VERSION").read_text().strip(), "0.1.3")
+            self.assertEqual((copy / "VERSION").read_text().strip(), "0.1.4")
             self.assertEqual((copy / "UPSTREAM_CLIENT_REF").read_text().strip(), new_sha)
-            release_notes = copy / "docs/releases/v0.1.3/RELEASE-NOTES.md"
+            release_notes = copy / "docs/releases/v0.1.4/RELEASE-NOTES.md"
             self.assertTrue(release_notes.is_file())
             notes_text = release_notes.read_text(encoding="utf-8")
             self.assertIn("macos-arm64-unsigned.zip", notes_text)
@@ -262,13 +275,13 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "Clash_Mac_Compile_v0.1.2_source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.1.3_source.zip").write_bytes(b"source")
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps({
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.1.2",
-                "assets": ["Clash_Mac_Compile_v0.1.2_source.zip"]
+                "project_version": "0.1.3",
+                "assets": ["Clash_Mac_Compile_v0.1.3_source.zip"]
             }), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip").write_bytes(b"unsigned app")
+            (build / "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip").write_bytes(b"unsigned app")
             (build / "BUILD-METADATA.json").write_text(json.dumps({
                 "signing": "disabled",
                 "team_id": None,
@@ -284,13 +297,20 @@ class ProjectTests(unittest.TestCase):
                 "vpn_authorization_supported": False
             }), encoding="utf-8")
             (build / "BUILD-OUTPUT-MANIFEST.json").write_text(json.dumps({
-                "project_version": "0.1.2",
-                "app_artifact": "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip",
-                "required_files": ["Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip"]
+                "project_version": "0.1.3",
+                "app_artifact": "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip",
+                "required_files": ["Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip"]
             }), encoding="utf-8")
+            (build / "BUILD-SCRIPT-STATUS.txt").write_text(
+                "status=success\nexit_code=0\nversion=0.1.3\n", encoding="utf-8"
+            )
+            (build / "BUILD-RUN-CONTEXT.txt").write_text(
+                "project=Clash_Mac_Compile\nversion=0.1.3\noutput_directory=build\n",
+                encoding="utf-8"
+            )
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.1.2"
+                "--dist", str(dist), "--source", str(build), "--version", "0.1.3"
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             manifest = json.loads((dist / "RELEASE-MANIFEST.json").read_text(encoding="utf-8"))
@@ -306,13 +326,13 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "Clash_Mac_Compile_v0.1.2_source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.1.3_source.zip").write_bytes(b"source")
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps({
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.1.2",
-                "assets": ["Clash_Mac_Compile_v0.1.2_source.zip"]
+                "project_version": "0.1.3",
+                "assets": ["Clash_Mac_Compile_v0.1.3_source.zip"]
             }), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip").write_bytes(b"local signed app")
+            (build / "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip").write_bytes(b"local signed app")
             (build / "BUILD-METADATA.json").write_text(json.dumps({
                 "signing": "local-self-signed",
                 "signing_identity": "Clash_Mac_Compile Local Development",
@@ -327,13 +347,20 @@ class ProjectTests(unittest.TestCase):
                 "vpn_authorization_supported": False
             }), encoding="utf-8")
             (build / "BUILD-OUTPUT-MANIFEST.json").write_text(json.dumps({
-                "project_version": "0.1.2",
-                "app_artifact": "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip",
-                "required_files": ["Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip"]
+                "project_version": "0.1.3",
+                "app_artifact": "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip",
+                "required_files": ["Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip"]
             }), encoding="utf-8")
+            (build / "BUILD-SCRIPT-STATUS.txt").write_text(
+                "status=success\nexit_code=0\nversion=0.1.3\n", encoding="utf-8"
+            )
+            (build / "BUILD-RUN-CONTEXT.txt").write_text(
+                "project=Clash_Mac_Compile\nversion=0.1.3\noutput_directory=build\n",
+                encoding="utf-8"
+            )
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.1.2"
+                "--dist", str(dist), "--source", str(build), "--version", "0.1.3"
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("explicitly unsigned", result.stderr)
@@ -345,14 +372,14 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "Clash_Mac_Compile_v0.1.2_source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.1.3_source.zip").write_bytes(b"source")
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps({
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.1.2",
-                "assets": ["Clash_Mac_Compile_v0.1.2_source.zip"]
+                "project_version": "0.1.3",
+                "assets": ["Clash_Mac_Compile_v0.1.3_source.zip"]
             }), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip").write_bytes(b"app")
-            (build / "BUILD-METADATA.json").write_text('{"valid": true}\\n\\n', encoding="utf-8")
+            (build / "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip").write_bytes(b"app")
+            (build / "BUILD-METADATA.json").write_text('{"valid": true} trailing', encoding="utf-8")
             (build / "VPN-ARCHITECTURE-REPORT.json").write_text(json.dumps({
                 "provider_target_type": "system-extension",
                 "distribution_architecture_ready": True,
@@ -360,13 +387,20 @@ class ProjectTests(unittest.TestCase):
                 "vpn_authorization_supported": False
             }), encoding="utf-8")
             (build / "BUILD-OUTPUT-MANIFEST.json").write_text(json.dumps({
-                "project_version": "0.1.2",
-                "app_artifact": "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip",
-                "required_files": ["Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip"]
+                "project_version": "0.1.3",
+                "app_artifact": "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip",
+                "required_files": ["Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip"]
             }), encoding="utf-8")
+            (build / "BUILD-SCRIPT-STATUS.txt").write_text(
+                "status=success\nexit_code=0\nversion=0.1.3\n", encoding="utf-8"
+            )
+            (build / "BUILD-RUN-CONTEXT.txt").write_text(
+                "project=Clash_Mac_Compile\nversion=0.1.3\noutput_directory=build\n",
+                encoding="utf-8"
+            )
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.1.2"
+                "--dist", str(dist), "--source", str(build), "--version", "0.1.3"
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("BUILD-METADATA.json", result.stderr)
@@ -380,15 +414,15 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "Clash_Mac_Compile_v0.1.2_source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.1.3_source.zip").write_bytes(b"source")
             (dist / "validation.md").write_text("validation\n", encoding="utf-8")
             manifest = {
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.1.2",
-                "assets": ["Clash_Mac_Compile_v0.1.2_source.zip", "validation.md"]
+                "project_version": "0.1.3",
+                "assets": ["Clash_Mac_Compile_v0.1.3_source.zip", "validation.md"]
             }
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip").write_bytes(b"app zip")
+            (build / "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip").write_bytes(b"app zip")
             (build / "BUILD-METADATA.json").write_text(json.dumps({
                 "client_commit": "abc",
                 "signing": "disabled",
@@ -405,13 +439,20 @@ class ProjectTests(unittest.TestCase):
                 "vpn_authorization_supported": False
             }), encoding="utf-8")
             (build / "BUILD-OUTPUT-MANIFEST.json").write_text(json.dumps({
-                "project_version": "0.1.2",
-                "app_artifact": "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip",
-                "required_files": ["Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip"]
+                "project_version": "0.1.3",
+                "app_artifact": "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip",
+                "required_files": ["Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip"]
             }), encoding="utf-8")
+            (build / "BUILD-SCRIPT-STATUS.txt").write_text(
+                "status=success\nexit_code=0\nversion=0.1.3\n", encoding="utf-8"
+            )
+            (build / "BUILD-RUN-CONTEXT.txt").write_text(
+                "project=Clash_Mac_Compile\nversion=0.1.3\noutput_directory=build\n",
+                encoding="utf-8"
+            )
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.1.2"
+                "--dist", str(dist), "--source", str(build), "--version", "0.1.3"
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

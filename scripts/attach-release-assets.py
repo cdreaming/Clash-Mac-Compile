@@ -53,6 +53,8 @@ def main() -> int:
         source / "BUILD-METADATA.json",
         source / "VPN-ARCHITECTURE-REPORT.json",
         source / "BUILD-OUTPUT-MANIFEST.json",
+        source / "BUILD-SCRIPT-STATUS.txt",
+        source / "BUILD-RUN-CONTEXT.txt",
     ]
     for item in required:
         if not item.is_file():
@@ -63,6 +65,14 @@ def main() -> int:
         raise RuntimeError("This project version only accepts an explicitly unsigned APP build.")
     if metadata.get("signing") != "disabled" or metadata.get("vpn_authorization_supported") is not False:
         raise RuntimeError("APP metadata must clearly identify disabled signing and unsupported VPN authorization.")
+
+    build_status = {}
+    for line in (source / "BUILD-SCRIPT-STATUS.txt").read_text(encoding="utf-8").splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            build_status[key.strip()] = value.strip()
+    if build_status.get("status") != "success" or build_status.get("exit_code") != "0":
+        raise RuntimeError("BUILD-SCRIPT-STATUS.txt does not confirm a successful build.")
 
     output_manifest = load_json(source / "BUILD-OUTPUT-MANIFEST.json", "BUILD-OUTPUT-MANIFEST.json")
     if output_manifest.get("project_version") != args.version:
@@ -110,7 +120,7 @@ def main() -> int:
         sums.append(f"{sha(dist / name)}  {name}")
     (dist / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", encoding="utf-8")
 
-    print(f"Attached unsigned macOS assets: {zip_name}, BUILD-METADATA.json, VPN-ARCHITECTURE-REPORT.json, BUILD-OUTPUT-MANIFEST.json")
+    print(f"Attached unsigned macOS assets: {zip_name}, BUILD-METADATA.json, VPN-ARCHITECTURE-REPORT.json, BUILD-OUTPUT-MANIFEST.json, BUILD-SCRIPT-STATUS.txt, BUILD-RUN-CONTEXT.txt")
     return 0
 
 

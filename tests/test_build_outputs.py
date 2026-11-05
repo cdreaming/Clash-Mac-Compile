@@ -12,10 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class BuildOutputTests(unittest.TestCase):
     def make_outputs(self, directory: Path):
-        app = "Clash_Mac_Compile-v0.1.2-macos-arm64-unsigned.zip"
+        app = "Clash_Mac_Compile-v0.1.3-macos-arm64-unsigned.zip"
         (directory / app).write_bytes(b"app zip")
         (directory / "BUILD-METADATA.json").write_text(json.dumps({
-            "project_version": "0.1.2",
+            "project_version": "0.1.3",
             "distribution_mode": "unsigned"
         }), encoding="utf-8")
         (directory / "VPN-ARCHITECTURE-REPORT.json").write_text(json.dumps({
@@ -24,8 +24,15 @@ class BuildOutputTests(unittest.TestCase):
             "system_extension_packaged": True
         }), encoding="utf-8")
         (directory / "SHA256SUMS.txt").write_text("checksum  app.zip\n", encoding="utf-8")
+        (directory / "BUILD-SCRIPT-STATUS.txt").write_text(
+            "status=success\nexit_code=0\nversion=0.1.3\n", encoding="utf-8"
+        )
+        (directory / "BUILD-RUN-CONTEXT.txt").write_text(
+            "project=Clash_Mac_Compile\nversion=0.1.3\noutput_directory=test\n",
+            encoding="utf-8"
+        )
         (directory / "BUILD-OUTPUT-MANIFEST.json").write_text(json.dumps({
-            "project_version": "0.1.2",
+            "project_version": "0.1.3",
             "app_artifact": app,
             "required_files": [app, "BUILD-METADATA.json", "VPN-ARCHITECTURE-REPORT.json", "SHA256SUMS.txt"]
         }), encoding="utf-8")
@@ -34,7 +41,7 @@ class BuildOutputTests(unittest.TestCase):
     def run_verifier(self, directory: Path):
         return subprocess.run(
             [sys.executable, str(ROOT / "scripts/verify-build-outputs.py"),
-             "--directory", str(directory), "--version", "0.1.2", "--mode", "unsigned"],
+             "--directory", str(directory), "--version", "0.1.3", "--mode", "unsigned"],
             cwd=ROOT, text=True, capture_output=True
         )
 
@@ -55,6 +62,27 @@ class BuildOutputTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(app, result.stderr)
             self.assertIn("Missing or empty files", result.stderr)
+
+    def test_missing_build_script_status_is_reported(self):
+        with tempfile.TemporaryDirectory() as td:
+            directory = Path(td)
+            self.make_outputs(directory)
+            (directory / "BUILD-SCRIPT-STATUS.txt").unlink()
+            result = self.run_verifier(directory)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("BUILD-SCRIPT-STATUS.txt is missing", result.stderr)
+
+    def test_nonzero_build_script_status_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            directory = Path(td)
+            self.make_outputs(directory)
+            (directory / "BUILD-SCRIPT-STATUS.txt").write_text(
+                "status=failed\nexit_code=65\nversion=0.1.3\n", encoding="utf-8"
+            )
+            result = self.run_verifier(directory)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("exit_code=65", result.stdout)
+            self.assertIn("did not report a successful exit", result.stderr)
 
     def test_mode_mismatch_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:

@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.2`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.3`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -61,10 +61,10 @@
 `VERSION` 是项目版本唯一事实源。每一轮功能、脚本或构建配置改动都应提升项目版本，不要复用已发布版本：
 
 ```bash
-python3 scripts/prepare-version.py --version 0.1.2 --risk L2 --write
+python3 scripts/prepare-version.py --version 0.1.4 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题；v0.1.0 将 macOS Packet Tunnel 迁移为 System Extension 并增加激活流程；v0.1.1 修正 System Extension 内嵌 Framework/runpath，并保留完整 Xcode Linker 诊断；v0.1.2 增加构建输出清单、上传前校验和单目录 Artifact 上传。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题；v0.1.0 将 macOS Packet Tunnel 迁移为 System Extension 并增加激活流程；v0.1.1 修正 System Extension 内嵌 Framework/runpath，并保留完整 Xcode Linker 诊断；v0.1.2 增加构建输出清单、上传前校验和单目录 Artifact 上传；v0.1.3 将构建和验证合并到同一 Actions step，并持久化 workflow/script 退出状态和路径上下文。
 
 ## 上游版本可复现性
 

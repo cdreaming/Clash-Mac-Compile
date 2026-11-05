@@ -25,15 +25,46 @@ def main() -> int:
         "VPN-ARCHITECTURE-REPORT.json",
         "SHA256SUMS.txt",
         "BUILD-OUTPUT-MANIFEST.json",
+        "BUILD-SCRIPT-STATUS.txt",
+        "BUILD-RUN-CONTEXT.txt",
     ]
 
     print(f"Build output directory: {directory}")
     if directory.is_dir():
-        for item in sorted(directory.iterdir()):
-            if item.is_file():
-                print(f"  {item.name} ({item.stat().st_size} bytes)")
+        items = sorted(directory.rglob("*"))
+        files = [item for item in items if item.is_file()]
+        if files:
+            for item in files:
+                print(f"  {item.relative_to(directory)} ({item.stat().st_size} bytes)")
+        else:
+            print("  <directory exists but contains no files>")
     else:
         print("  <directory does not exist>")
+
+    status_file = directory / "BUILD-SCRIPT-STATUS.txt"
+    if status_file.is_file():
+        status_text = status_file.read_text(encoding="utf-8", errors="replace")
+        print("Build script status:")
+        print(status_text.rstrip())
+        status = {}
+        for line in status_text.splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                status[key.strip()] = value.strip()
+        if status.get("status") != "success" or status.get("exit_code") != "0":
+            print("Build script did not report a successful exit.", file=sys.stderr)
+            return 1
+    else:
+        context = directory / "BUILD-RUN-CONTEXT.txt"
+        if context.is_file():
+            print("Build run context:")
+            print(context.read_text(encoding="utf-8", errors="replace").rstrip())
+        print(
+            "BUILD-SCRIPT-STATUS.txt is missing. The build script may not have started, "
+            "may have used another output directory, or may be from an older source revision.",
+            file=sys.stderr,
+        )
+        return 1
 
     missing = [
         name for name in required
@@ -46,7 +77,8 @@ def main() -> int:
             file=sys.stderr,
         )
         print(
-            "The Xcode build step may have stopped before packaging, or --output points to a different directory.",
+            "The build script ran but did not produce every required output. Inspect BUILD-SCRIPT-STATUS.txt, "
+            "BUILD-RUN-CONTEXT.txt and the Xcode linker diagnostic files.",
             file=sys.stderr,
         )
         return 1

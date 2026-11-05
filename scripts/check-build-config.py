@@ -74,6 +74,9 @@ def main() -> int:
         'VPN-ARCHITECTURE-REPORT.json',
         'OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"',
         'BUILD-OUTPUT-MANIFEST.json',
+        'BUILD-SCRIPT-STATUS.txt',
+        'BUILD-RUN-CONTEXT.txt',
+        'cleanup_build()',
         'xcodebuild -verbose',
         'tee "$XCODEBUILD_LOG"',
         'PIPESTATUS[0]',
@@ -128,7 +131,9 @@ def main() -> int:
         raise RuntimeError("Release attachment must validate the VPN architecture report")
 
     output_verifier = (ROOT / "scripts/verify-build-outputs.py").read_text(encoding="utf-8")
-    for token in ("BUILD-OUTPUT-MANIFEST.json", "project_version", "distribution_mode", "app_artifact"):
+    for token in ("BUILD-OUTPUT-MANIFEST.json", "BUILD-SCRIPT-STATUS.txt",
+                  "BUILD-RUN-CONTEXT.txt", "status", "exit_code",
+                  "project_version", "distribution_mode", "app_artifact"):
         if token not in output_verifier:
             raise RuntimeError(f"Build output verifier is missing: {token}")
     if "BUILD-OUTPUT-MANIFEST.json" not in attach_text or "app_artifact" not in attach_text:
@@ -170,8 +175,12 @@ def main() -> int:
         raise RuntimeError("Build workflow must upload linker diagnostics even when Xcode build fails")
     if 'CLASH_SIGNING_MODE: "unsigned"' not in build_text:
         raise RuntimeError("GitHub Build workflow must explicitly force unsigned mode")
-    if "Verify macOS build outputs" not in build_text or "verify-build-outputs.py" not in build_text:
-        raise RuntimeError("Build workflow must verify expected files before upload")
+    if "Build and verify native macOS app" not in build_text or "verify-build-outputs.py" not in build_text:
+        raise RuntimeError("Build workflow must build and verify outputs in the same step")
+    if "id: build_app" not in build_text or "steps.build_app.outcome" not in build_text:
+        raise RuntimeError("Build workflow must expose and report the build step outcome")
+    if "BUILD-WORKFLOW-STATUS.txt" not in build_text or "BUILD-SCRIPT-STATUS.txt" not in build_text:
+        raise RuntimeError("Build workflow must preserve workflow and script status files")
     if "path: build/ci/" not in build_text:
         raise RuntimeError("Build workflow must upload the build output directory as one artifact path")
     if "CODE_SIGNING_ALLOWED=NO" not in script_text:
@@ -196,10 +205,16 @@ def main() -> int:
         raise RuntimeError("GitHub Release must attach the unsigned APP through the guarded asset script")
     if "Upload Xcode linker diagnostics" not in release_text or "if: always()" not in release_text:
         raise RuntimeError("Release workflow must upload linker diagnostics even when Xcode build fails")
-    if 'CLASH_SIGNING_MODE: "unsigned"' not in release_text or "verify-build-outputs.py" not in release_text:
-        raise RuntimeError("Release workflow must force unsigned mode and verify outputs before attachment")
-    if 'CLASH_SIGNING_MODE: "unsigned"' not in weekly_text or "verify-build-outputs.py" not in weekly_text:
-        raise RuntimeError("Weekly workflow must force unsigned mode and verify outputs before attachment")
+    for name, workflow_text in (("Release", release_text), ("Weekly", weekly_text)):
+        if 'CLASH_SIGNING_MODE: "unsigned"' not in workflow_text or "verify-build-outputs.py" not in workflow_text:
+            raise RuntimeError(f"{name} workflow must force unsigned mode and verify outputs")
+        if "Build and verify native macOS app" not in workflow_text or "steps.build_app.outcome" not in workflow_text:
+            raise RuntimeError(f"{name} workflow must build and verify in one step and report its outcome")
+        if ("BUILD-SCRIPT-STATUS.txt" not in workflow_text
+                or "BUILD-WORKFLOW-STATUS.txt" not in workflow_text
+                or "BUILD-WORKFLOW-CONTEXT.txt" not in workflow_text
+                or "Report build outcome and output directory" not in workflow_text):
+            raise RuntimeError(f"{name} workflow must preserve build status diagnostics")
     if "Upload Xcode linker diagnostics" not in weekly_text or "if: always()" not in weekly_text:
         raise RuntimeError("Weekly workflow must upload linker diagnostics even when Xcode build fails")
 

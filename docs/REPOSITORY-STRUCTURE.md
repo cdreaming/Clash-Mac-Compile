@@ -11,10 +11,10 @@
 `│   └── TEMPLATE-MANIFEST.json` — 通用治理模板导出清单；排除 Clash_Mac_Compile 项目专属配置。
 `├── .github/` — GitHub 仓库自动化与协作配置；保存 AI 指令、PR 模板和 Actions 工作流。
 `│   ├── workflows/` — GitHub Actions 工作流；分别执行通用质量门禁、macOS APP 自动构建和正式 Release。
-`│   │   ├── build-macos.yml` — macOS arm64 unsigned 构建；显式 unsigned、上传前验证输出目录，并将 build/ci/ 作为单一路径上传；失败时上传 Linker diagnostics。
+`│   │   ├── build-macos.yml` — macOS arm64 构建和输出验证在同一 Actions step 执行；记录 workflow/script status/context；always() 报告 outcome 并上传诊断。
 `│   │   ├── ci.yml` — main Push/PR 的通用质量门禁，并运行模板治理回归测试。
-`│   │   ├── release.yml` — Tag Release workflow；显式 unsigned，构建后验证 build/release 输出清单，再附加 APP / metadata / VPN report / build output manifest；失败时上传 Linker diagnostics。
-`│   │   └── upstream-weekly.yml` — 每周上游自动 Preview workflow；显式 unsigned，构建后验证 build/release 输出清单，并在失败时上传 Linker diagnostics。
+`│   │   ├── release.yml` — Tag Release workflow；构建和输出验证同一步执行，always() 报告 outcome 并上传失败状态、上下文和 Xcode Linker diagnostics。
+`│   │   └── upstream-weekly.yml` — 每周上游 Preview workflow；构建和输出验证同一步执行，always() 报告 outcome 并上传失败状态、上下文和 Xcode Linker diagnostics。
 `│   ├── copilot-instructions.md` — GitHub Copilot 的项目专属开发规则。
 `│   └── pull_request_template.md` — PR 检查模板；要求标记风险等级、真实验证和经验沉淀。
 `├── docs/` — 长期文档根目录；保存架构、开发规则、GitHub 说明、Release 规则、版本归档和模板。
@@ -62,7 +62,8 @@
 `│   │   ├── v0.0.9.md` — v0.0.9 发布经验；JSON 序列化结果必须通过真实生成和严格解析验证。
 `│   │   ├── v0.1.0.md` — v0.1.0 发布经验；System Extension 结构迁移不等于 Apple Developer VPN entitlement 已获授权。
 `│   │   ├── v0.1.1.md` — v0.1.1 发布经验；System Extension 的 Frameworks 层级变化需同步调整依赖嵌入与 runpath，Xcode 失败必须保留完整日志。
-`│   │   └── v0.1.2.md` — v0.1.2 发布经验；上传前验证文件、版本和分发模式，GitHub Artifact 使用单目录路径。
+`│   │   ├── v0.1.2.md` — v0.1.2 发布经验；上传前验证文件、版本和分发模式，GitHub Artifact 使用单目录路径。
+`│   │   └── v0.1.3.md` — v0.1.3 发布经验；多产物缺失先查 build outcome 和输出目录，build/verify 同一步并持久化退出码。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -136,6 +137,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.1.2 发布经验；记录 Artifact path not found 的诊断边界和单目录上传修复。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.1.2 Build Artifact 输出目录规范化、BUILD-OUTPUT-MANIFEST、上传前验证和单目录 Artifact 上传说明。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.1.2 验证报告；记录输出验证器、GitHub workflow 契约和待执行的云端构建。
+`│   │   ├── v0.1.3/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.1.3 开发日志；记录构建产物全缺失问题与构建验证闭环修复。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — 当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.1.3 发布经验；构建和验证合并、状态与上下文持久化、失败时 always-run 诊断。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.1.3 Build/Verify 同步执行、绝对路径、workflow/script status/context 和失败诊断说明。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.1.3 验证报告；区分本地源码测试和待执行的 GitHub macOS Runner 构建。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -153,15 +160,15 @@
 `│   │   └── VALIDATION-REPORT.template.md` — 真实验证报告模板；记录环境、命令、结果、故障注入和发布结论。
 `│   └── REPOSITORY-STRUCTURE.md` — 自动生成的仓库目录树；逐个文件夹和文件写明职责，并由 CI 校验不漂移。
 `├── scripts/` — 项目治理和 macOS 原生 APP 自动构建、配置校验、Release 资产脚本。
-`│   ├── attach-release-assets.py` — Release 资产附加脚本；验证 unsigned APP、BUILD-METADATA、VPN 架构报告和 BUILD-OUTPUT-MANIFEST.json 的版本及文件名，再复制到 Release。
+`│   ├── attach-release-assets.py` — Release 资产附加脚本；校验 APP ZIP、metadata、VPN 架构报告、BUILD-OUTPUT-MANIFEST 和 BUILD-SCRIPT-STATUS 成功状态。
 `│   ├── audit-vpn-architecture.py` — 审计 System Extension target、Bundle ID、App Groups、Network Extension entitlement、provider framework embed、Framework runpath、激活调用链和 APP 嵌入路径。
 `│   ├── bootstrap-project.py` — 把通用模板初始化为具体项目；重置项目历史并强制真实业务测试/simulation 重新配置。
 `│   ├── build-ai-handoff.py` — AI 唯一正式收尾入口；完成开发状态、candidate gate、Release build 并导出三类交接包。
 `│   ├── build-local-signed-app.sh` — 本机自签名构建入口；先检查 Keychain identity，再调用 build-macos-app.sh 的 local 模式，不在 GitHub Actions 中运行。
-`│   ├── build-macos-app.sh` — arm64 Swift -O 构建；规范化 --output 绝对路径，生成 APP ZIP、metadata、VPN report、checksums 和 BUILD-OUTPUT-MANIFEST.json，并验证必需文件非空。
+`│   ├── build-macos-app.sh` — arm64 Swift -O 构建脚本；规范化输出目录，写入 BUILD-RUN-CONTEXT / BUILD-SCRIPT-STATUS 并通过 EXIT trap 保留真实退出码；生成 APP、metadata、VPN report、checksums 和 BUILD-OUTPUT-MANIFEST。
 `│   ├── build-release.py` — 生成确定性源码 ZIP、Release manifest 和 SHA-256；拒绝 P12 / PFX / 私钥 / Provisioning Profile 等敏感文件。
 `│   ├── build-source-manifest.py` — 生成/校验源码 SHA-256 清单；拒绝 symlink 和 Secret 进入受管源码集合。
-`│   ├── check-build-config.py` — 检查版本、上游 SHA、System Extension 架构、Linker 诊断、Build Output Manifest、上传前验证和 Build/Release/Weekly workflow 路径契约。
+`│   ├── check-build-config.py` — 检查构建脚本状态记录、build+verify 同步执行、workflow outcome/context 诊断和 always-upload 契约。
 `│   ├── check-governance.py` — development/candidate/release/archive 四级治理门禁；验证结构、文档、状态和远端证据语义。
 `│   ├── check-local-signing-identity.sh` — 通过 security find-identity 检查本地 Clash_Mac_Compile Local Development 自签名身份是否在 macOS Keychain 中可用。
 `│   ├── dev-safe-run.py` — 高风险长任务安全执行器；提供 heartbeat、hard timeout、持久日志和退出状态。
@@ -176,11 +183,11 @@
 `│   ├── set-release-disposition.py` — 把未正式发布的旧版本按事实标记为 superseded/abandoned/failed，不阻塞后续开发。
 `│   ├── summarize-xcode-linker-errors.py` — 解析 XCODEBUILD.log，提取 Undefined symbols、duplicate symbol、framework/library not found、ld 和 clang linker 错误及上下文，生成 LINKER-DIAGNOSTICS.txt。
 `│   ├── update-repository-structure.py` — 同步职责 catalog 并自动生成/校验逐文件逐目录 Repository Structure。
-`│   ├── verify-build-outputs.py` — 验证 macOS 构建输出目录中的版本化 APP ZIP、BUILD-METADATA、VPN 架构报告、SHA256SUMS 和 BUILD-OUTPUT-MANIFEST；上传或 Release 附件前检查版本、分发模式和文件名。
+`│   ├── verify-build-outputs.py` — 验证构建输出文件、版本、分发模式和 APP ZIP；递归列出实际文件，检查 BUILD-SCRIPT-STATUS / BUILD-RUN-CONTEXT，区分脚本未启动、失败和产物缺失。
 `│   ├── verify-github-release.sh` — GitHub Release 后置验证；认证下载线上资产并检查集合、SHA-256、Release Notes 和可选匿名探针。
 `│   └── verify-local-signed-app.sh` — 使用 codesign 验证主 APP 与嵌套 App Extension 的本地签名，并生成不宣称 Apple entitlement 授权的 JSON 报告。
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
-`│   ├── test_build_outputs.py` — 构建输出验证回归测试；覆盖完整产物通过、缺失 APP ZIP 报错和分发模式不匹配。
+`│   ├── test_build_outputs.py` — 构建输出验证测试；覆盖完整输出、缺少 APP ZIP、build script 非零退出码和签名模式不匹配。
 `│   ├── test_governance.py` — 治理回归测试；覆盖旧日志缺少完成摘要/会话标记、重发布预检失败时不修改发布状态等场景。
 `│   ├── test_linker_diagnostics.py` — Xcode Linker 诊断解析器回归测试；验证 undefined symbols、linker command failed 和无标准错误日志的处理。
 `│   ├── test_packaging.py` — 源码包 ZIP、SHA-256、确定性打包和敏感密钥扩展名拒绝测试。
@@ -190,7 +197,7 @@
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。
 `├── AGENTS.md` — 仓库级 AI 规则与 Clash_Mac_Compile 专属上游、签名和验证约束。
-`├── BUILD-INFO.md` — v0.1.2 构建信息；记录构建输出目录、BUILD-OUTPUT-MANIFEST 和上传前验证入口。
+`├── BUILD-INFO.md` — v0.1.3 构建信息；记录 workflow/script 状态文件、绝对输出路径和构建验证闭环。
 `├── CHANGELOG.md` — 项目各版本变更记录；v0.0.7 记录旧版开发日志兼容、重发布预检和治理回归测试。
 `├── README.md` — v0.1.1 项目说明；包含 System Extension 构建、Xcode Linker 日志和失败 Artifact 下载指引。
 `├── RELEASE_REVISION` — 同一项目 VERSION 的发布修订号；0 为原始发布，1/2… 对应 r1/r2 受控重发审计序号。
