@@ -52,8 +52,14 @@ jobs:
         env:
           CLASH_BUILD_JOBS: "2"
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
+          CLASH_SIGNING_MODE: "unsigned"
         run: |
           bash scripts/build-macos-app.sh --output build/ci
+
+      - name: Verify macOS build outputs
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          python3 scripts/verify-build-outputs.py --directory build/ci --version "$VERSION" --mode unsigned
 
       - name: Upload Xcode linker diagnostics
         if: always()
@@ -80,10 +86,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-unsigned-${{ github.sha }}
-          path: |
-            build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-unsigned.zip
-            build/ci/BUILD-METADATA.json
-            build/ci/VPN-ARCHITECTURE-REPORT.json
-            build/ci/SHA256SUMS.txt
+          path: build/ci/
           if-no-files-found: error
           retention-days: 14

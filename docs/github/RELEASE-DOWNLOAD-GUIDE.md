@@ -12,6 +12,7 @@ GitHub Releases 页面是长期下载入口：
 |---|---|
 | `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip` | Apple Silicon macOS 原生 APP（无签名） |
 | `Clash_Mac_Compile_vX.Y.Z_source.zip` | 完整构建工程源码 |
+| `BUILD-OUTPUT-MANIFEST.json` | 实际构建输出目录、版本、APP ZIP 文件名和必需文件清单 |
 | `BUILD-METADATA.json` | Client / Kernel / Adapter commit、Xcode、Go 和优化配置 |
 | `SHA256SUMS.txt` | SHA-256 校验 |
 | `RELEASE-MANIFEST.json` | Release 资产清单 |

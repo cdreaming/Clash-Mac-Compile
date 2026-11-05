@@ -1,5 +1,14 @@
 # Version Changelog
 
+## v0.1.2
+
+- 修复 GitHub Actions Artifact 上传找不到 `build/ci` 文件的问题：构建脚本规范化输出目录，验证 APP ZIP、metadata、VPN report 和 SHA256SUMS。
+- 新增 `BUILD-OUTPUT-MANIFEST.json`，记录版本、输出目录、unsigned 模式、APP ZIP 名称和输出文件清单。
+- 新增 `scripts/verify-build-outputs.py`，在 Build / Release / Weekly 上传或附加前验证输出文件、版本和分发模式。
+- Build workflow 改为上传单一目录 `build/ci/`，避免多路径 artifact glob 路径解析歧义。
+- Build / Release / Weekly 显式设置 `CLASH_SIGNING_MODE=unsigned`，确保 APP ZIP 命名一致。
+- Release attachment 验证并上传 `BUILD-OUTPUT-MANIFEST.json`。
+
 ## v0.1.1
 
 - 修正 Packet Tunnel System Extension 对 `ClashMacCore` framework 的依赖：provider target 改为嵌入 framework，不再依赖 host app 的旧 `.appex` 相对路径。

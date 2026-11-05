@@ -1,66 +1,61 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.1`）
-- 治理模板版本：`1.1.1`
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.2`）
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
-- 目标平台：macOS
 - 上游客户端：`ProjectClash/Clash-Client`
 - 上游客户端 Ref：`e3e647283b1593a61dba622f13cd499deeda9b8b`
-- Xcode Scheme：`ClashmacOS`
-- 构建配置：Release
-- Swift 优化级别：`-O`
-- Xcode 并行编译任务：最多 2
-- 目标架构：`arm64`
+- Scheme：`ClashmacOS`
+- Configuration：`Release`
+- Architecture：`arm64`
+- Swift optimization：`-O`
+- Xcode jobs：`2`
 
-## macOS VPN 架构
+## Build outputs
 
-- Packet Tunnel target：XcodeGen `system-extension`。
-- Extension bundle ID：`$(CLASH_BUNDLE_BASE).packet-tunnel`。
-- Network Extension entitlement：`packet-tunnel-provider-systemextension`。
-- Host app entitlement：`com.apple.developer.system-extension.install=true`。
-- Host app links `SystemExtensions.framework`。
-- Host app embeds provider under `Contents/Library/SystemExtensions`。
-- Provider embeds `ClashMacCore.framework` under its own `Contents/Frameworks`。
-- Provider runpath：`@executable_path/../Frameworks`。
-- VPN start flow requests `OSSystemExtensionRequest` activation before saving the VPN configuration.
-- Build output includes `VPN-ARCHITECTURE-REPORT.json` for structure / signature / entitlement audit.
+Default GitHub build command:
 
-## Xcode Linker diagnostics
+```bash
+bash scripts/build-macos-app.sh --output build/ci
+```
 
-- Verbose build log：`XCODEBUILD.log`。
-- Parsed error summary：`LINKER-DIAGNOSTICS.txt`。
-- Failed exit code：`XCODEBUILD-EXIT-CODE.txt`。
-- Provider resolved build settings：`ClashmacOSExtension-BuildSettings.json`。
-- Patched XcodeGen spec：`ClashClient-project.system-extension.yml`。
-- Build / Release / Weekly upload diagnostics with `if: always()`.
+The script resolves the output directory to an absolute path, prints it, verifies all required output files, and writes `BUILD-OUTPUT-MANIFEST.json`.
 
-## 签名与授权边界
-
-- GitHub Build / Release / Weekly：unsigned，不需要 Apple Developer Secrets。
-- 本地开发：可选 self-signed Code Signing identity，只用于代码签名流程测试。
-- 自签名不提供 Apple Team ID、Apple 授权 Network Extension entitlement、Provisioning Profile 或 Notarization。
-- 当前无 Apple Developer 授权时，`vpn_authorization_supported=false`；System Extension 架构迁移不等于 VPN 激活成功。
-
-## 构建入口
-
-- GitHub unsigned：`scripts/build-macos-app.sh --output build/ci`
-- 本地 self-signed：`scripts/build-local-signed-app.sh --output build/local-signed`
-- 上游架构补丁：`scripts/patch-macos-system-extension.py`
-- VPN 架构审计：`scripts/audit-vpn-architecture.py`
-- Linker 诊断解析：`scripts/summarize-xcode-linker-errors.py`
-
-## 产物
+Required unsigned outputs:
 
 - `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`
-- `Clash_Mac_Compile-vX.Y.Z-macos-arm64-local-signed.zip`（仅本机）
-- `Clash_Mac_Compile_vX.Y.Z_source.zip`
 - `BUILD-METADATA.json`
 - `VPN-ARCHITECTURE-REPORT.json`
+- `SHA256SUMS.txt`
+- `BUILD-OUTPUT-MANIFEST.json`
+
+Before Artifact upload or Release attachment:
+
+```bash
+python3 scripts/verify-build-outputs.py --directory build/ci --version X.Y.Z --mode unsigned
+```
+
+GitHub Build / Release / Weekly explicitly set `CLASH_SIGNING_MODE=unsigned`. Build workflow uploads the single directory `build/ci/` as one Artifact path.
+
+## VPN architecture
+
+- Packet Tunnel target: XcodeGen `system-extension`.
+- Provider entitlement: `packet-tunnel-provider-systemextension`.
+- Host app entitlement: `com.apple.developer.system-extension.install=true`.
+- Provider embeds `ClashMacCore.framework` and uses `@executable_path/../Frameworks`.
+- System Extension activation is requested before VPN preferences are saved.
+- `VPN-ARCHITECTURE-REPORT.json` records structural and authorization state.
+
+## Linker diagnostics
+
 - `XCODEBUILD.log`
 - `LINKER-DIAGNOSTICS.txt`
+- `XCODEBUILD-EXIT-CODE.txt`
 - `ClashmacOSExtension-BuildSettings.json`
+- `ClashClient-project.system-extension.yml`
 
-## 安全
+Build / Release / Weekly upload linker diagnostics with `if: always()`.
 
-P12、PFX、私钥和 Provisioning Profile 不得提交到仓库或源码 ZIP。GitHub Releases 不上传本地自签名产物。
+## Signing limitation
+
+GitHub builds are unsigned. Local self-signing does not provide Apple Developer ID, Apple-authorized Network Extension entitlement, provisioning profile or notarization. A successful build does not prove VPN authorization.

@@ -110,7 +110,13 @@ jobs:
         env:
           CLASH_BUILD_JOBS: "2"
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
+          CLASH_SIGNING_MODE: "unsigned"
         run: bash scripts/build-macos-app.sh --output build/release
+
+      - name: Verify macOS build outputs
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          python3 scripts/verify-build-outputs.py --directory build/release --version "$VERSION" --mode unsigned
 
       - name: Upload Xcode linker diagnostics
         if: always()

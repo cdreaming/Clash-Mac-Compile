@@ -62,6 +62,8 @@ fi
 
 if [[ "$OUTPUT_DIR" != /* ]]; then OUTPUT_DIR="$ROOT/$OUTPUT_DIR"; fi
 mkdir -p "$OUTPUT_DIR"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"
+echo "Build output directory: $OUTPUT_DIR"
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/clash-mac-compile.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -338,8 +340,40 @@ PY
   shasum -a 256 "${ASSETS[@]}" > SHA256SUMS.txt
 )
 
+python3 - "$OUTPUT_DIR" "$VERSION" "$ZIP_NAME" "$SIGNING_MODE" <<'PY'
+import json, sys
+from pathlib import Path
+output = Path(sys.argv[1])
+version, app_zip, signing_mode = sys.argv[2:]
+required = [
+    app_zip,
+    "BUILD-METADATA.json",
+    "VPN-ARCHITECTURE-REPORT.json",
+    "SHA256SUMS.txt",
+]
+missing = [name for name in required if not (output / name).is_file() or (output / name).stat().st_size == 0]
+if missing:
+    raise SystemExit("Build output validation failed; missing or empty files: " + ", ".join(missing))
+manifest = {
+    "project": "Clash_Mac_Compile",
+    "project_version": version,
+    "output_directory": str(output),
+    "distribution_mode": "local-development-only" if signing_mode == "local" else "unsigned",
+    "app_artifact": app_zip,
+    "required_files": required,
+    "files": sorted(p.name for p in output.iterdir() if p.is_file()),
+}
+(output / "BUILD-OUTPUT-MANIFEST.json").write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+)
+print("Build output manifest:", output / "BUILD-OUTPUT-MANIFEST.json")
+for name in required:
+    print(f"Verified output: {output / name} ({(output / name).stat().st_size} bytes)")
+PY
+
 echo "Build complete:"
 echo "  APP: $ZIP_PATH"
+echo "  Output manifest: $OUTPUT_DIR/BUILD-OUTPUT-MANIFEST.json"
 echo "  Metadata: $OUTPUT_DIR/BUILD-METADATA.json"
 echo "  VPN architecture report: $OUTPUT_DIR/VPN-ARCHITECTURE-REPORT.json"
 echo "  Xcode build log: $OUTPUT_DIR/XCODEBUILD.log"

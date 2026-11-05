@@ -52,6 +52,7 @@ def main() -> int:
         source / zip_name,
         source / "BUILD-METADATA.json",
         source / "VPN-ARCHITECTURE-REPORT.json",
+        source / "BUILD-OUTPUT-MANIFEST.json",
     ]
     for item in required:
         if not item.is_file():
@@ -62,6 +63,12 @@ def main() -> int:
         raise RuntimeError("This project version only accepts an explicitly unsigned APP build.")
     if metadata.get("signing") != "disabled" or metadata.get("vpn_authorization_supported") is not False:
         raise RuntimeError("APP metadata must clearly identify disabled signing and unsupported VPN authorization.")
+
+    output_manifest = load_json(source / "BUILD-OUTPUT-MANIFEST.json", "BUILD-OUTPUT-MANIFEST.json")
+    if output_manifest.get("project_version") != args.version:
+        raise RuntimeError("BUILD-OUTPUT-MANIFEST.json version does not match the Release version.")
+    if output_manifest.get("app_artifact") != zip_name:
+        raise RuntimeError("BUILD-OUTPUT-MANIFEST.json APP filename does not match the expected Release asset.")
 
     vpn_report = load_json(source / "VPN-ARCHITECTURE-REPORT.json", "VPN-ARCHITECTURE-REPORT.json")
     if vpn_report.get("provider_target_type") != "system-extension":
@@ -103,7 +110,7 @@ def main() -> int:
         sums.append(f"{sha(dist / name)}  {name}")
     (dist / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", encoding="utf-8")
 
-    print(f"Attached unsigned macOS assets: {zip_name}, BUILD-METADATA.json, VPN-ARCHITECTURE-REPORT.json")
+    print(f"Attached unsigned macOS assets: {zip_name}, BUILD-METADATA.json, VPN-ARCHITECTURE-REPORT.json, BUILD-OUTPUT-MANIFEST.json")
     return 0
 
 

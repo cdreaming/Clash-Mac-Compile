@@ -41,6 +41,7 @@ def main() -> int:
         "scripts/patch-macos-system-extension.py",
         "scripts/audit-vpn-architecture.py",
         "scripts/summarize-xcode-linker-errors.py",
+        "scripts/verify-build-outputs.py",
         ".github/workflows/build-macos.yml",
         ".github/workflows/release.yml",
         ".github/workflows/upstream-weekly.yml",
@@ -71,6 +72,8 @@ def main() -> int:
         '"vpn_architecture": "macos-system-extension"',
         '"system_extension_packaged": bool(vpn_report.get("system_extension_packaged"))',
         'VPN-ARCHITECTURE-REPORT.json',
+        'OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"',
+        'BUILD-OUTPUT-MANIFEST.json',
         'xcodebuild -verbose',
         'tee "$XCODEBUILD_LOG"',
         'PIPESTATUS[0]',
@@ -124,6 +127,13 @@ def main() -> int:
     if "VPN-ARCHITECTURE-REPORT.json" not in attach_text or "distribution_architecture_ready" not in attach_text:
         raise RuntimeError("Release attachment must validate the VPN architecture report")
 
+    output_verifier = (ROOT / "scripts/verify-build-outputs.py").read_text(encoding="utf-8")
+    for token in ("BUILD-OUTPUT-MANIFEST.json", "project_version", "distribution_mode", "app_artifact"):
+        if token not in output_verifier:
+            raise RuntimeError(f"Build output verifier is missing: {token}")
+    if "BUILD-OUTPUT-MANIFEST.json" not in attach_text or "app_artifact" not in attach_text:
+        raise RuntimeError("Release attachment must validate the build output manifest")
+
     local_wrapper = (ROOT / "scripts/build-local-signed-app.sh").read_text(encoding="utf-8")
     identity_check = (ROOT / "scripts/check-local-signing-identity.sh").read_text(encoding="utf-8")
     verifier = (ROOT / "scripts/verify-local-signed-app.sh").read_text(encoding="utf-8")
@@ -154,12 +164,16 @@ def main() -> int:
         raise RuntimeError("Build workflow must limit Xcode jobs to 2")
     if "macos-arm64-unsigned" not in build_text:
         raise RuntimeError("GitHub Build workflow must remain unsigned")
-    if "VPN-ARCHITECTURE-REPORT.json" not in build_text:
-        raise RuntimeError("GitHub Build workflow must upload the VPN architecture report")
+    if "VPN-ARCHITECTURE-REPORT.json" not in script_text or "path: build/ci/" not in build_text:
+        raise RuntimeError("GitHub Build workflow must upload the complete build directory, including the VPN architecture report")
     if "Upload Xcode linker diagnostics" not in build_text or "if: always()" not in build_text:
         raise RuntimeError("Build workflow must upload linker diagnostics even when Xcode build fails")
-    if "CLASH_SIGNING_MODE" in build_text:
-        raise RuntimeError("GitHub Build workflow must not attempt to use a developer's local Keychain")
+    if 'CLASH_SIGNING_MODE: "unsigned"' not in build_text:
+        raise RuntimeError("GitHub Build workflow must explicitly force unsigned mode")
+    if "Verify macOS build outputs" not in build_text or "verify-build-outputs.py" not in build_text:
+        raise RuntimeError("Build workflow must verify expected files before upload")
+    if "path: build/ci/" not in build_text:
+        raise RuntimeError("Build workflow must upload the build output directory as one artifact path")
     if "CODE_SIGNING_ALLOWED=NO" not in script_text:
         raise RuntimeError("Unsigned build must explicitly prevent Xcode from requesting a signing identity")
 
@@ -170,7 +184,7 @@ def main() -> int:
     ):
         if any(token in workflow_text for token in (
             "APPLE_TEAM_ID", "APPLE_CERTIFICATE", "APPLE_NOTARY",
-            "CLASH_LOCAL_SIGNING_IDENTITY", "CLASH_SIGNING_MODE"
+            "CLASH_LOCAL_SIGNING_IDENTITY"
         )):
             raise RuntimeError(f"{name} workflow must not require a user's local signing key")
         if "import-apple-signing-assets" in workflow_text or "notarize-macos-app" in workflow_text:
@@ -182,6 +196,10 @@ def main() -> int:
         raise RuntimeError("GitHub Release must attach the unsigned APP through the guarded asset script")
     if "Upload Xcode linker diagnostics" not in release_text or "if: always()" not in release_text:
         raise RuntimeError("Release workflow must upload linker diagnostics even when Xcode build fails")
+    if 'CLASH_SIGNING_MODE: "unsigned"' not in release_text or "verify-build-outputs.py" not in release_text:
+        raise RuntimeError("Release workflow must force unsigned mode and verify outputs before attachment")
+    if 'CLASH_SIGNING_MODE: "unsigned"' not in weekly_text or "verify-build-outputs.py" not in weekly_text:
+        raise RuntimeError("Weekly workflow must force unsigned mode and verify outputs before attachment")
     if "Upload Xcode linker diagnostics" not in weekly_text or "if: always()" not in weekly_text:
         raise RuntimeError("Weekly workflow must upload linker diagnostics even when Xcode build fails")
 

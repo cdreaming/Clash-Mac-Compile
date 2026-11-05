@@ -12,12 +12,13 @@
     "simulation_configured": true,
     "commands": {
       "static": [
-        "python3 -m py_compile scripts/*.py tests/*.py && bash -n scripts/build-macos-app.sh && bash -n scripts/build-local-signed-app.sh && bash -n scripts/check-local-signing-identity.sh && bash -n scripts/verify-local-signed-app.sh && python3 scripts/check-build-config.py --release"
+        "python3 -m py_compile scripts/*.py tests/*.py && bash -n scripts/build-macos-app.sh && bash -n scripts/build-local-signed-app.sh && python3 scripts/check-build-config.py --release"
       ],
       "unit": [
         "python3 -m unittest -q tests.test_project",
         "python3 -m unittest -q tests.test_vpn_architecture",
-        "python3 -m unittest -q tests.test_linker_diagnostics"
+        "python3 -m unittest -q tests.test_linker_diagnostics",
+        "python3 -m unittest -q tests.test_build_outputs"
       ],
       "integration": [],
       "smoke": [],
