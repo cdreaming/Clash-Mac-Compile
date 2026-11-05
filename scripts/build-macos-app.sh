@@ -3,12 +3,24 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_DIR="build/ci"
+SIGNING_MODE="${CLASH_SIGNING_MODE:-unsigned}"
+SIGNING_IDENTITY="${CLASH_LOCAL_SIGNING_IDENTITY:-Clash_Mac_Compile Local Development}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output)
       [[ $# -ge 2 ]] || { echo "--output requires a path" >&2; exit 2; }
       OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    --signing-mode)
+      [[ $# -ge 2 ]] || { echo "--signing-mode requires unsigned or local" >&2; exit 2; }
+      SIGNING_MODE="$2"
+      shift 2
+      ;;
+    --signing-identity)
+      [[ $# -ge 2 ]] || { echo "--signing-identity requires a name" >&2; exit 2; }
+      SIGNING_IDENTITY="$2"
       shift 2
       ;;
     *)
@@ -40,6 +52,13 @@ SWIFT_OPTIMIZATION_LEVEL="${CLASH_SWIFT_OPTIMIZATION_LEVEL:--O}"
   echo "CLASH_SWIFT_OPTIMIZATION_LEVEL must be -O or -Osize" >&2
   exit 2
 }
+[[ "$SIGNING_MODE" == "unsigned" || "$SIGNING_MODE" == "local" ]] || {
+  echo "Signing mode must be unsigned or local." >&2
+  exit 2
+}
+if [[ "$SIGNING_MODE" == "local" ]]; then
+  bash "$ROOT/scripts/check-local-signing-identity.sh" "$SIGNING_IDENTITY"
+fi
 
 if [[ "$OUTPUT_DIR" != /* ]]; then OUTPUT_DIR="$ROOT/$OUTPUT_DIR"; fi
 mkdir -p "$OUTPUT_DIR"
@@ -64,7 +83,13 @@ echo "Build jobs: $BUILD_JOBS"
 echo "Swift optimization: $SWIFT_OPTIMIZATION_LEVEL"
 echo "Performance profile: runtime-speed-priority"
 echo "Target architecture: arm64 only"
-echo "Distribution: unsigned macOS app; VPN authorization is not supported by this build"
+if [[ "$SIGNING_MODE" == "local" ]]; then
+  echo "Signing: local self-signed identity ($SIGNING_IDENTITY)"
+  echo "Distribution: local development only; Apple VPN authorization is not granted"
+else
+  echo "Signing: disabled"
+  echo "Distribution: unsigned macOS app; VPN authorization is not supported by this build"
+fi
 
 echo "==> Xcode"
 xcodebuild -version
@@ -100,23 +125,37 @@ python3 "$CLIENT_DIR/scripts/configure.py" \
   --bundle-base com.cdreaming.clash \
   --team ""
 
-echo "==> Build native macOS app (arm64, unsigned, runtime-speed priority)"
-xcodebuild \
-  -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj" \
-  -scheme ClashmacOS \
-  -configuration Release \
-  -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath "$DERIVED_DATA" \
-  -jobs "$BUILD_JOBS" \
-  -showBuildTimingSummary \
-  CODE_SIGNING_ALLOWED=NO \
-  ARCHS=arm64 \
-  ONLY_ACTIVE_ARCH=YES \
-  SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL" \
-  MARKETING_VERSION="$VERSION" \
-  CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-  CLASH_SOURCE_REVISION="$CLIENT_SHA" \
-  build
+echo "==> Build native macOS app (arm64, $SIGNING_MODE, runtime-speed priority)"
+XCODEBUILD_ARGS=(
+  -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj"
+  -scheme ClashmacOS
+  -configuration Release
+  -destination 'platform=macOS,arch=arm64'
+  -derivedDataPath "$DERIVED_DATA"
+  -jobs "$BUILD_JOBS"
+  -showBuildTimingSummary
+  ARCHS=arm64
+  ONLY_ACTIVE_ARCH=YES
+  SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL"
+  MARKETING_VERSION="$VERSION"
+  CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+  CLASH_SOURCE_REVISION="$CLIENT_SHA"
+)
+
+if [[ "$SIGNING_MODE" == "local" ]]; then
+  XCODEBUILD_ARGS+=(
+    CODE_SIGNING_ALLOWED=YES
+    CODE_SIGNING_REQUIRED=YES
+    CODE_SIGN_IDENTITY="$SIGNING_IDENTITY"
+    CODE_SIGN_STYLE=Manual
+    DEVELOPMENT_TEAM=
+    CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO
+  )
+else
+  XCODEBUILD_ARGS+=(CODE_SIGNING_ALLOWED=NO)
+fi
+
+xcodebuild "${XCODEBUILD_ARGS[@]}" build
 
 PRODUCT_DIR="$DERIVED_DATA/Build/Products/Release"
 APP_PATH="$PRODUCT_DIR/Clash.app"
@@ -157,17 +196,27 @@ echo "APP executable architectures: $ARCHS_FOUND"
   exit 1
 }
 
-ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64-unsigned.zip"
+if [[ "$SIGNING_MODE" == "local" ]]; then
+  ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64-local-signed.zip"
+  rm -f "$OUTPUT_DIR/Clash_Mac_Compile-v${VERSION}-macos-arm64-unsigned.zip"
+  bash "$ROOT/scripts/verify-local-signed-app.sh" \
+    "$APP_PATH" "$SIGNING_IDENTITY" "$OUTPUT_DIR/LOCAL-SIGNING-REPORT.json"
+else
+  ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64-unsigned.zip"
+  rm -f "$OUTPUT_DIR/Clash_Mac_Compile-v${VERSION}-macos-arm64-local-signed.zip"
+  rm -f "$OUTPUT_DIR/LOCAL-SIGNING-REPORT.json"
+fi
 ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
 python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" \
-  "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" "$SWIFT_OPTIMIZATION_LEVEL" <<'PY'
+  "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" "$SWIFT_OPTIMIZATION_LEVEL" \
+  "$SIGNING_MODE" "$SIGNING_IDENTITY" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
 
-root, client, client_sha, version, build_number, artifact, output, build_jobs, swift_optimization = sys.argv[1:]
+root, client, client_sha, version, build_number, artifact, output, build_jobs, swift_optimization, signing_mode, signing_identity = sys.argv[1:]
 root = Path(root)
 client = Path(client)
 lock = json.loads((client / "Dependencies.lock.json").read_text(encoding="utf-8"))
@@ -175,6 +224,7 @@ lock = json.loads((client / "Dependencies.lock.json").read_text(encoding="utf-8"
 def cmd(*args):
     return subprocess.check_output(args, text=True).strip()
 
+local = signing_mode == "local"
 metadata = {
     "project": "Clash_Mac_Compile",
     "project_version": version,
@@ -186,11 +236,20 @@ metadata = {
     "build_jobs": int(build_jobs),
     "swift_optimization_level": swift_optimization,
     "performance_profile": "runtime-speed-priority",
-    "signing": "disabled",
+    "signing": "local-self-signed" if local else "disabled",
+    "signing_identity": signing_identity if local else None,
+    "local_signing_report": "LOCAL-SIGNING-REPORT.json" if local else None,
     "team_id": None,
-    "distribution_mode": "unsigned",
+    "apple_developer_identity": False,
+    "apple_entitlements_authorized": False,
+    "notarized": False,
+    "distribution_mode": "local-development-only" if local else "unsigned",
     "vpn_authorization_supported": False,
     "limitations": [
+        "Local self-signed identity verifies local code-signing mechanics only; it is not an Apple Developer ID.",
+        "A local self-signed identity does not authorize Network Extension, Packet Tunnel or System Extension installation.",
+        "Apple notarization and Gatekeeper developer identity checks are not provided."
+    ] if local else [
         "Unsigned build; macOS may require manual user approval to open.",
         "Packet Tunnel / Network Extension VPN authorization is not supported without Apple Developer signing and provisioning."
     ],
@@ -204,21 +263,32 @@ metadata = {
     "adapter_commit": lock["adapter"]["revision"],
     "gomobile": lock["gomobile"],
     "gobind": lock["gobind"],
-    "xcode_version": cmd("xcodebuild", "-version").replace("\n", " / "),
+    "xcode_version": cmd("xcodebuild", "-version").replace("\\n", " / "),
     "go_version": cmd("go", "version"),
     "build_date_utc": cmd("date", "-u", "+%Y-%m-%dT%H:%M:%SZ")
 }
-Path(output).write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+Path(output).write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
 PY
 
 (
   cd "$OUTPUT_DIR"
-  shasum -a 256 "$ZIP_NAME" > SHA256SUMS.txt
+  ASSETS=("$ZIP_NAME" "BUILD-METADATA.json")
+  if [[ -f "LOCAL-SIGNING-REPORT.json" ]]; then
+    ASSETS+=("LOCAL-SIGNING-REPORT.json")
+  fi
+  shasum -a 256 "${ASSETS[@]}" > SHA256SUMS.txt
 )
 
 echo "Build complete:"
 echo "  APP: $ZIP_PATH"
 echo "  Metadata: $OUTPUT_DIR/BUILD-METADATA.json"
 echo "  Architecture: arm64"
-echo "  Signing: disabled"
-echo "  VPN authorization: unsupported in unsigned build"
+if [[ "$SIGNING_MODE" == "local" ]]; then
+  echo "  Signing: local self-signed ($SIGNING_IDENTITY)"
+  echo "  Signature verification: passed"
+  echo "  VPN authorization: not granted by local certificate"
+  echo "  Local report: $OUTPUT_DIR/LOCAL-SIGNING-REPORT.json"
+else
+  echo "  Signing: disabled"
+  echo "  VPN authorization: unsupported in unsigned build"
+fi

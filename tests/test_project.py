@@ -19,7 +19,7 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(profile["project_name"], "Clash_Mac_Compile")
         self.assertEqual(profile["project_slug"], "clash-mac-compile")
         self.assertEqual(profile["repository"], "cdreaming/Clash-Mac-Compile")
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "0.0.7")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "0.0.8")
 
     def test_build_configuration(self):
         result = self.run_cmd(sys.executable, "scripts/check-build-config.py")
@@ -36,10 +36,13 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("scripts/configure.py", script)
         self.assertIn("ClashmacOS", script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
-        self.assertNotIn("CODE_SIGNING_ALLOWED=YES", script)
+        self.assertIn("CODE_SIGNING_ALLOWED=YES", script)  # opt-in local development mode
+        self.assertIn('SIGNING_MODE="${CLASH_SIGNING_MODE:-unsigned}"', script)
+        self.assertIn("CLASH_SIGNING_MODE", script)
         self.assertNotIn("Developer ID Application", script)
         self.assertNotIn("APPLE_TEAM_ID", script)
-        self.assertNotIn("CLASH_SIGNING_MODE", script)
+        self.assertIn("local-self-signed", script)
+        self.assertIn('"apple_entitlements_authorized": False', script)
         self.assertIn("ARCHS=arm64", script)
         self.assertIn("ONLY_ACTIVE_ARCH=YES", script)
         self.assertIn('SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL"', script)
@@ -47,7 +50,7 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("lipo -archs", script)
         self.assertNotIn("lipo -verify_arch", script)
         self.assertNotIn("x86_64", script)
-        self.assertIn('"distribution_mode": "unsigned"', script)
+        self.assertIn('"distribution_mode": "local-development-only" if local else "unsigned"', script)
         self.assertIn('"vpn_authorization_supported": False', script)
 
         self.assertIn("runs-on: xcode-27", workflow)
@@ -57,6 +60,8 @@ class ProjectTests(unittest.TestCase):
         self.assertIn('CLASH_BUILD_JOBS: "2"', workflow)
         self.assertIn('go-version: "1.26.10"', workflow)
         self.assertNotIn("APPLE_", workflow + release + weekly)
+        self.assertNotIn("CLASH_LOCAL_SIGNING_IDENTITY", workflow + release + weekly)
+        self.assertNotIn("CLASH_SIGNING_MODE", workflow + release + weekly)
         self.assertNotIn("import-apple-signing-assets", release + weekly)
         self.assertNotIn("notarize-macos-app", release + weekly)
         self.assertNotIn('CLASH_SIGNING_MODE: "signed"', release + weekly)
@@ -65,6 +70,41 @@ class ProjectTests(unittest.TestCase):
         self.assertNotIn("cancel-in-progress: true", workflow)
         self.assertIn("timeout-minutes: 240", workflow)
 
+
+    def test_local_signing_scripts_are_opt_in_and_do_not_change_github_release(self):
+        wrapper = (ROOT / "scripts/build-local-signed-app.sh").read_text(encoding="utf-8")
+        checker = (ROOT / "scripts/check-local-signing-identity.sh").read_text(encoding="utf-8")
+        verifier = (ROOT / "scripts/verify-local-signed-app.sh").read_text(encoding="utf-8")
+        build = (ROOT / "scripts/build-macos-app.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/build-macos.yml").read_text(encoding="utf-8")
+        release = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        weekly = (ROOT / ".github/workflows/upstream-weekly.yml").read_text(encoding="utf-8")
+
+        self.assertIn("--signing-mode local", wrapper)
+        self.assertIn("security find-identity -v -p codesigning", checker)
+        self.assertIn("codesign --verify --strict", verifier)
+        self.assertIn("Clash_Mac_Compile Local Development", wrapper + checker)
+        self.assertIn('SIGNING_MODE="${CLASH_SIGNING_MODE:-unsigned}"', build)
+        self.assertIn("CODE_SIGNING_ALLOWED=YES", build)
+        self.assertIn("CODE_SIGNING_ALLOWED=NO", build)
+        self.assertIn('"distribution_mode": "local-development-only" if local else "unsigned"', build)
+        self.assertIn('"apple_entitlements_authorized": False', build)
+        self.assertIn('"vpn_authorization_supported": False', build)
+
+        for workflow_text in (workflow, release, weekly):
+            self.assertNotIn("CLASH_LOCAL_SIGNING_IDENTITY", workflow_text)
+            self.assertNotIn("CLASH_SIGNING_MODE", workflow_text)
+            self.assertNotIn("APPLE_TEAM_ID", workflow_text)
+        self.assertIn("scripts/attach-release-assets.py", release)
+        self.assertIn("scripts/attach-release-assets.py", weekly)
+
+    def test_local_signing_identity_checker_requires_macos(self):
+        import platform
+        if platform.system() == "Darwin":
+            self.skipTest("macOS host can inspect the local Keychain")
+        result = self.run_cmd("bash", "scripts/check-local-signing-identity.sh")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("require macOS Keychain", result.stderr)
 
     def test_build_script_refuses_non_macos_hosts(self):
         import platform
@@ -99,9 +139,9 @@ class ProjectTests(unittest.TestCase):
                 cwd=copy, text=True, capture_output=True
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual((copy / "VERSION").read_text().strip(), "0.0.8")
+            self.assertEqual((copy / "VERSION").read_text().strip(), "0.0.9")
             self.assertEqual((copy / "UPSTREAM_CLIENT_REF").read_text().strip(), new_sha)
-            release_notes = copy / "docs/releases/v0.0.8/RELEASE-NOTES.md"
+            release_notes = copy / "docs/releases/v0.0.9/RELEASE-NOTES.md"
             self.assertTrue(release_notes.is_file())
             notes_text = release_notes.read_text(encoding="utf-8")
             self.assertIn("macos-arm64-unsigned.zip", notes_text)
@@ -132,13 +172,13 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "Clash_Mac_Compile_v0.0.7_source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.0.8_source.zip").write_bytes(b"source")
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps({
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.0.7",
-                "assets": ["Clash_Mac_Compile_v0.0.7_source.zip"]
+                "project_version": "0.0.8",
+                "assets": ["Clash_Mac_Compile_v0.0.8_source.zip"]
             }), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.0.7-macos-arm64-unsigned.zip").write_bytes(b"unsigned app")
+            (build / "Clash_Mac_Compile-v0.0.8-macos-arm64-unsigned.zip").write_bytes(b"unsigned app")
             (build / "BUILD-METADATA.json").write_text(json.dumps({
                 "signing": "disabled",
                 "team_id": None,
@@ -148,7 +188,7 @@ class ProjectTests(unittest.TestCase):
             }), encoding="utf-8")
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.0.7"
+                "--dist", str(dist), "--source", str(build), "--version", "0.0.8"
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             manifest = json.loads((dist / "RELEASE-MANIFEST.json").read_text(encoding="utf-8"))
@@ -157,6 +197,34 @@ class ProjectTests(unittest.TestCase):
             self.assertTrue((dist / "SHA256SUMS.txt").is_file())
 
 
+    def test_attach_release_assets_rejects_local_signed_app(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            dist = root / "dist"
+            build = root / "build"
+            dist.mkdir()
+            build.mkdir()
+            (dist / "Clash_Mac_Compile_v0.0.8_source.zip").write_bytes(b"source")
+            (dist / "RELEASE-MANIFEST.json").write_text(json.dumps({
+                "project": "Clash_Mac_Compile",
+                "project_version": "0.0.8",
+                "assets": ["Clash_Mac_Compile_v0.0.8_source.zip"]
+            }), encoding="utf-8")
+            (build / "Clash_Mac_Compile-v0.0.8-macos-arm64-unsigned.zip").write_bytes(b"local signed app")
+            (build / "BUILD-METADATA.json").write_text(json.dumps({
+                "signing": "local-self-signed",
+                "signing_identity": "Clash_Mac_Compile Local Development",
+                "team_id": None,
+                "distribution_mode": "local-development-only",
+                "vpn_authorization_supported": False
+            }), encoding="utf-8")
+            result = self.run_cmd(
+                sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
+                "--dist", str(dist), "--source", str(build), "--version", "0.0.8"
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("explicitly unsigned", result.stderr)
+
     def test_attach_release_assets_updates_manifest_and_checksums(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -164,15 +232,15 @@ class ProjectTests(unittest.TestCase):
             build = root / "build"
             dist.mkdir()
             build.mkdir()
-            (dist / "Clash_Mac_Compile_v0.0.7_source.zip").write_bytes(b"source")
+            (dist / "Clash_Mac_Compile_v0.0.8_source.zip").write_bytes(b"source")
             (dist / "validation.md").write_text("validation\n", encoding="utf-8")
             manifest = {
                 "project": "Clash_Mac_Compile",
-                "project_version": "0.0.7",
-                "assets": ["Clash_Mac_Compile_v0.0.7_source.zip", "validation.md"]
+                "project_version": "0.0.8",
+                "assets": ["Clash_Mac_Compile_v0.0.8_source.zip", "validation.md"]
             }
             (dist / "RELEASE-MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
-            (build / "Clash_Mac_Compile-v0.0.7-macos-arm64-unsigned.zip").write_bytes(b"app zip")
+            (build / "Clash_Mac_Compile-v0.0.8-macos-arm64-unsigned.zip").write_bytes(b"app zip")
             (build / "BUILD-METADATA.json").write_text(json.dumps({
                 "client_commit": "abc",
                 "signing": "disabled",
@@ -183,7 +251,7 @@ class ProjectTests(unittest.TestCase):
 
             result = self.run_cmd(
                 sys.executable, str(ROOT / "scripts/attach-release-assets.py"),
-                "--dist", str(dist), "--source", str(build), "--version", "0.0.7"
+                "--dist", str(dist), "--source", str(build), "--version", "0.0.8"
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -193,6 +261,24 @@ class ProjectTests(unittest.TestCase):
             for line in (dist / "SHA256SUMS.txt").read_text().splitlines():
                 digest, name = line.split(maxsplit=1)
                 self.assertEqual(hashlib.sha256((dist / name.strip()).read_bytes()).hexdigest(), digest)
+
+    def test_source_release_rejects_local_private_key_material(self):
+        with tempfile.TemporaryDirectory() as td:
+            copy = Path(td) / "repo"
+            ignore = shutil.ignore_patterns(".git", ".dev-state", "dist", "build",
+                                            "tmp", "__pycache__", ".pytest_cache",
+                                            ".venv", "venv")
+            shutil.copytree(ROOT, copy, ignore=ignore)
+            local_signing = copy / "LocalSigning"
+            local_signing.mkdir()
+            (local_signing / "identity.p12").write_bytes(b"private-key-placeholder")
+            result = subprocess.run(
+                [sys.executable, "scripts/build-release.py"],
+                cwd=copy, text=True, capture_output=True
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("拒绝敏感文件", result.stderr)
+            self.assertIn("identity.p12", result.stderr)
 
 if __name__ == "__main__":
     unittest.main()

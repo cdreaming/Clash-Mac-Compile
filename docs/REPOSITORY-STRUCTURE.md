@@ -38,6 +38,8 @@
 `│   │   ├── PRIVATE-REPOSITORY-SETUP.md` — 私有 GitHub 仓库创建、Sourcetree 初始化、gh/PAT 认证下载和凭据安全说明。
 `│   │   ├── RELEASE-DOWNLOAD-GUIDE.md` — GitHub Releases 无签名 APP、源码、构建元数据、SHA-256、安装方式和 VPN 功能限制说明。
 `│   │   └── REPOSITORY-RULESETS.md` — 单人 direct-push 与团队 PR 两种仓库保护策略，以及 tag/Action/immutable release 建议。
+`│   ├── local-development/` — 开发者本机专用工具和本地自签名代码签名说明；私钥不进入仓库。
+`│   │   └── LOCAL-CODE-SIGNING.md` — 本地自签名 P12 导入、Keychain 检查、Xcode 本地签名构建、签名验证及 Apple VPN entitlement 限制。
 `│   ├── macos/` — macOS App Group 容器、配置文件路径和安装后数据检查说明。
 `│   │   └── CONFIGURATION-DIRECTORIES.md` — 说明官方 App Group 配置目录的预期位置，以及无签名构建下容器可能不存在的限制。
 `│   ├── performance/` — 运行速度优先的编译策略、Instruments 与 Go pprof 性能基准指南。
@@ -55,7 +57,8 @@
 `│   │   ├── v0.0.4.md` — v0.0.4 发布经验；将 Xcode 27 lipo 参数兼容性转化为回归检查。
 `│   │   ├── v0.0.5.md` — 当前版本发布经验；把事故根因转成可执行防回归规则。
 `│   │   ├── v0.0.6.md` — v0.0.6 发布经验；无签名构建不等于 Network Extension / Packet Tunnel 可用。
-`│   │   └── v0.0.7.md` — v0.0.7 发布经验规则；将旧日志兼容和重发布预检故障转化为防回归要求。
+`│   │   ├── v0.0.7.md` — v0.0.7 发布经验规则；将旧日志兼容和重发布预检故障转化为防回归要求。
+`│   │   └── v0.0.8.md` — v0.0.8 发布经验；记录自签名身份与 Apple 授权 entitlement 的边界及私钥防泄漏规则。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -99,6 +102,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.7 发布经验；记录开发日志格式兼容、预检顺序和防半更新规则。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.0.7 用户发布说明；治理兼容修复、无签名 arm64 APP、VPN 限制、下载资产和每周 Preview。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.0.7 实际验证报告；记录逐项测试结果并区分未执行的云端构建和 VPN 实机验证。
+`│   │   ├── v0.0.8/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.0.8 开发日志；记录本地自签名构建、GitHub unsigned 隔离和授权边界。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — 当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.0.8 发布经验；记录本地自签名与 GitHub 无签名发布隔离策略。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.0.8 本地自签名开发模式说明；GitHub 仍无签名，明确 VPN 授权边界。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.0.8 验证报告；区分本地静态检查、待执行的 macOS Keychain/Xcode 签名与 VPN 实测。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -119,11 +128,13 @@
 `│   ├── attach-release-assets.py` — 将无签名 arm64 APP ZIP 与构建元数据加入 GitHub Release，生成资产清单和 SHA-256，并写明 VPN 授权限制。
 `│   ├── bootstrap-project.py` — 把通用模板初始化为具体项目；重置项目历史并强制真实业务测试/simulation 重新配置。
 `│   ├── build-ai-handoff.py` — AI 唯一正式收尾入口；完成开发状态、candidate gate、Release build 并导出三类交接包。
-`│   ├── build-macos-app.sh` — 在 macOS Runner 上构建无签名 arm64 Clash.app；Swift -O 运行速度优先，最多 2 个 Xcode 并行任务，输出 unsigned ZIP 和 VPN 限制元数据。
-`│   ├── build-release.py` — 生成符合 Clash_Mac_Compile_vX.Y.Z_source.zip 命名规则的完整源码包、Release manifest 和 SHA-256。
+`│   ├── build-local-signed-app.sh` — 本机自签名构建入口；先检查 Keychain identity，再调用 build-macos-app.sh 的 local 模式，不在 GitHub Actions 中运行。
+`│   ├── build-macos-app.sh` — arm64 Swift -O 构建脚本；默认 unsigned，显式 --signing-mode local 时用本机 Keychain 自签名身份签名并生成本地开发报告。
+`│   ├── build-release.py` — 生成确定性源码 ZIP、Release manifest 和 SHA-256；拒绝 P12 / PFX / 私钥 / Provisioning Profile 等敏感文件。
 `│   ├── build-source-manifest.py` — 生成/校验源码 SHA-256 清单；拒绝 symlink 和 Secret 进入受管源码集合。
 `│   ├── check-build-config.py` — 校验完整上游 SHA、arm64 Swift -O 无签名构建，以及不依赖 Apple Developer Secrets 的 Release / Weekly 工作流。
 `│   ├── check-governance.py` — development/candidate/release/archive 四级治理门禁；验证结构、文档、状态和远端证据语义。
+`│   ├── check-local-signing-identity.sh` — 通过 security find-identity 检查本地 Clash_Mac_Compile Local Development 自签名身份是否在 macOS Keychain 中可用。
 `│   ├── dev-safe-run.py` — 高风险长任务安全执行器；提供 heartbeat、hard timeout、持久日志和退出状态。
 `│   ├── dev-session.py` — 开发会话状态与检查点工具；兼容旧版日志，自动补齐会话元数据和完成摘要，并提供 validate 预检命令。
 `│   ├── finalize-release-archive.py` — 仅用真实 GitHub URL、tag commit、Actions 与线上验证结果把 Release 归档标记为 complete。
@@ -134,11 +145,12 @@
 `│   ├── run-simulated-environment.py` — 建立没有 Git/缓存/Secret 的 clean-room 临时工作区并运行真实项目 simulation。
 `│   ├── set-release-disposition.py` — 把未正式发布的旧版本按事实标记为 superseded/abandoned/failed，不阻塞后续开发。
 `│   ├── update-repository-structure.py` — 同步职责 catalog 并自动生成/校验逐文件逐目录 Repository Structure。
-`│   └── verify-github-release.sh` — GitHub Release 后置验证；认证下载线上资产并检查集合、SHA-256、Release Notes 和可选匿名探针。
+`│   ├── verify-github-release.sh` — GitHub Release 后置验证；认证下载线上资产并检查集合、SHA-256、Release Notes 和可选匿名探针。
+`│   └── verify-local-signed-app.sh` — 使用 codesign 验证主 APP 与嵌套 App Extension 的本地签名，并生成不宣称 Apple entitlement 授权的 JSON 报告。
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
 `│   ├── test_governance.py` — 治理回归测试；覆盖旧日志缺少完成摘要/会话标记、重发布预检失败时不修改发布状态等场景。
-`│   ├── test_packaging.py` — 验证源码 ZIP 完整性、无运行时密钥、Release manifest、SHA-256、同一源码树重复打包确定性和版本元数据。
-`│   └── test_project.py` — 9 项项目回归测试；包含 v0.0.7 版本身份、无签名构建、每周 Patch 递增和 Release 资产处理。
+`│   ├── test_packaging.py` — 源码包 ZIP、SHA-256、确定性打包和敏感密钥扩展名拒绝测试。
+`│   └── test_project.py` — 项目回归测试；覆盖 v0.0.8 本地自签名构建、GitHub 无签名隔离、Release 资产门禁和私钥防泄漏。
 `├── .editorconfig` — 统一 UTF-8、LF、末尾换行和空白规则，减少跨编辑器/跨平台无意义 Diff。
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。

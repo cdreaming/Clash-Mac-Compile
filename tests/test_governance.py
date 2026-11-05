@@ -67,6 +67,8 @@ class GovernanceTests(unittest.TestCase):
                 r"(?m)^<!-- DEVELOPMENT-(?:SESSION-STATUS|LAST-CHECKPOINT|COMPLETION-SOURCE):[^>]*-->\n?",
                 "", journal_text
             )
+            existing_checkpoints=[int(x) for x in re.findall(r"(?m)^### CP-(\d+)",journal_text)]
+            expected_checkpoint=f"CP-{max(existing_checkpoints,default=0)+1:03d}"
             journal.write_text(journal_text,encoding="utf-8")
             r=self.run_cmd(sys.executable,"scripts/prepare-republish.py","--mode","revision","--reason","发布后补充代码","--write",cwd=c)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr)
@@ -78,7 +80,7 @@ class GovernanceTests(unittest.TestCase):
             repaired=journal.read_text(encoding="utf-8")
             self.assertIn("## 完成摘要",repaired)
             self.assertIn("DEVELOPMENT-SESSION-STATUS: active",repaired)
-            self.assertIn("DEVELOPMENT-LAST-CHECKPOINT: CP-003",repaired)
+            self.assertIn(f"DEVELOPMENT-LAST-CHECKPOINT: {expected_checkpoint}",repaired)
             self.assertIn("DEVELOPMENT-COMPLETION-SOURCE: pending",repaired)
             self.assertIn("开始/重新打开开发",repaired)
 

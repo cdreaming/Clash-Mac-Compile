@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.7`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.8`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
@@ -14,26 +14,30 @@
 - Xcode 并行编译任务：最多 2
 - 目标架构：`arm64`（Apple Silicon only）
 - 架构检查：`lipo -archs`（兼容 Xcode 27）
-- Build / Release / Weekly Preview：统一无签名构建（`CODE_SIGNING_ALLOWED=NO`）；不需要 Apple Developer Secrets；Packet Tunnel / VPN 系统授权不可用
+
+## 构建模式
+
+- GitHub Build / Release / Weekly Preview：默认无签名（`CODE_SIGNING_ALLOWED=NO`），不需要 Apple Developer Secrets。
+- 本地开发：可选 `local-self-signed`，使用开发者 Mac Keychain 中的 `Clash_Mac_Compile Local Development` identity。
+- 本地自签名产物只用于开发测试，不上传 GitHub Releases。
+- 自签名不提供 Apple Team ID、Apple 授权 entitlement、公证或 VPN / Packet Tunnel 授权。
 
 ## 构建入口
 
 - Push / Pull Request / 手动构建：`.github/workflows/build-macos.yml`
 - Tag Release：`.github/workflows/release.yml`
 - 每周上游检查与自动 Preview：`.github/workflows/upstream-weekly.yml`
-- macOS 构建脚本：`scripts/build-macos-app.sh`
-
-## 版本与复现
-
-`VERSION` 管理本项目版本；`UPSTREAM_CLIENT_REF` 管理上游 Client 源码引用。正式 Release 必须将上游引用固定为完整 40 位 commit SHA。Client 内部通过 `Dependencies.lock.json` 固定 Clash Kernel 与 Clash Adapter。
+- GitHub 无签名构建：`scripts/build-macos-app.sh --output build/ci`
+- 本地自签名构建：`scripts/build-local-signed-app.sh --output build/local-signed`
 
 ## 构建产物
 
-- `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`
-- `Clash_Mac_Compile_vX.Y.Z_source.zip`
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`：GitHub Build / Release
+- `Clash_Mac_Compile-vX.Y.Z-macos-arm64-local-signed.zip`：本机开发测试
+- `Clash_Mac_Compile_vX.Y.Z_source.zip`：完整源码
 - `BUILD-METADATA.json`
-- ``（Release / Weekly Preview）
+- `LOCAL-SIGNING-REPORT.json`：本地签名模式
 
-GitHub Actions Artifact 默认保留 14 天。正式 Release 资产由 Release workflow 长期保存在 GitHub Release 中。
+## 安全
 
-## 无签名构建限制\n\n本项目不导入证书、不使用 provisioning profile、不调用 Apple Notary Service。无签名 APP 仅作为 macOS 编译产物分发；Network Extension / Packet Tunnel 的系统 VPN 授权不能保证成功。\n
+本地 `.p12`、`.pfx`、私钥和 Provisioning Profile 不得提交到仓库。源码打包会拒绝这些敏感文件。不要把本地自签名 ZIP 当作正式 VPN 安装包。

@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.7`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.8`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -59,10 +59,10 @@
 `VERSION` 是项目版本唯一事实源。每一轮功能、脚本或构建配置改动都应提升项目版本，不要复用已发布版本：
 
 ```bash
-python3 scripts/prepare-version.py --version 0.0.7 --risk L2 --write
+python3 scripts/prepare-version.py --version 0.0.9 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式。
 
 ## 上游版本可复现性
 
@@ -74,11 +74,23 @@ python3 scripts/prepare-version.py --version 0.0.7 --risk L2 --write
 
 Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 Client commit 内的 `Dependencies.lock.json` 固定。
 
-## 无签名构建与 VPN 限制
+## 本地自签名开发模式与 VPN 限制
 
-本项目不需要 Apple Developer Program、Developer ID 证书、Provisioning Profile 或 Apple 公证密钥。所有 Build、Release 和 Weekly Preview 工作流统一使用 `CODE_SIGNING_ALLOWED=NO` 构建无签名 arm64 APP。
+本项目保留两条彼此隔离的构建路径：
 
-无签名 APP 可以作为编译产物发布到 GitHub Releases，但 macOS 可能阻止启动；更重要的是，Network Extension / Packet Tunnel 的 VPN 系统授权不能保证成功，不能把它当作完整可用的 VPN 客户端。若未来需要真正启用 VPN，必须重新引入 Apple Developer 签名与 provisioning。
+- GitHub Build / Release / Weekly Preview：默认 `CODE_SIGNING_ALLOWED=NO`，不需要 Apple Developer Program 或任何 Apple Developer Secrets。
+- 开发者本机：可选使用 `Clash_Mac_Compile Local Development` 自签名身份测试 Xcode 代码签名；不上传 GitHub，不进入源码 ZIP。
+
+导入单独提供的本地 `.p12` 到 macOS 登录钥匙串后，运行：
+
+```bash
+bash scripts/check-local-signing-identity.sh
+bash scripts/build-local-signed-app.sh --output build/local-signed
+```
+
+本地输出 `macos-arm64-local-signed.zip` 和 `LOCAL-SIGNING-REPORT.json`。自签名只验证本地代码签名流程，不是 Apple Developer ID，没有 Apple Team ID，也不授予 Network Extension、Packet Tunnel 或 System Extension entitlement。
+
+当前锁定的 ProjectClash Client 工程将 `ClashmacOSExtension` 声明为 `app-extension`，本项目没有擅自改写上游为 System Extension。无论本地签名是否成功，VPN 系统授权仍不能保证成功；正式启用 VPN 需要 Apple 授权的签名与能力配置。详细说明见 `docs/local-development/LOCAL-CODE-SIGNING.md`。
 
 ## GitHub Releases 下载
 
@@ -98,9 +110,9 @@ Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 
 
 Release 默认使用 Swift `-O`，优先运行速度而非最小体积；Go 内核沿用上游锁定源码及其 Go 工具链，不注入未经基准验证的运行时 flags。性能优化不等于已实测收益，需用 Instruments / Go pprof 验证。性能优化策略和 Instruments / Go pprof 基准方法见 `docs/performance/PERFORMANCE-STRATEGY.md`。没有可重复基准前，不宣称具体性能提升比例。
 
-## 正式 Release 与 VPN 签名
+## GitHub Release 与本地开发构建
 
-`Build macOS App` 会生成无签名 arm64 APP Artifact。GUI 能否启动取决于 macOS 安全策略；该版本不能保证 Network Extension / Packet Tunnel VPN 系统授权。**普通用户从 GitHub Releases 下载标记为 unsigned 的 APP ZIP。**
+`Build macOS App` 会生成无签名 arm64 APP Artifact。GUI 能否启动取决于 macOS 安全策略；该版本不能保证 Network Extension / Packet Tunnel VPN 系统授权。**普通用户从 GitHub Releases 下载标记为 unsigned 的 APP ZIP。** 本地 self-signed ZIP 只供开发 Mac 测试，不上传 Release。
 
 正式 Release 采用 `vX.Y.Z` tag。Release workflow 无需任何 Apple Developer Secrets，会重新构建 arm64 无签名 APP，并将 APP ZIP、源码 ZIP、构建元数据、SHA-256 和下载说明上传到 GitHub Releases。Release 页面会明确提示无签名状态，以及 Packet Tunnel / VPN 授权不可用的限制。
 

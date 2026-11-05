@@ -1,5 +1,15 @@
 # Version Changelog
 
+## v0.0.8
+
+- 增加本地自签名开发模式，使用单独提供的 `Clash_Mac_Compile Local Development` identity 在开发 Mac 上验证 Xcode 代码签名。
+- 新增本地 Keychain identity 检查、local signed build wrapper、主 APP / 嵌套扩展签名验证和 `LOCAL-SIGNING-REPORT.json`。
+- `build-macos-app.sh` 默认仍为 unsigned；仅显式选择 `--signing-mode local` 才启用本地自签名。
+- GitHub Build / Release / Weekly 保持 unsigned，不访问开发者本地 Keychain，不接收个人 P12。
+- Release 资产附加继续只接受 unsigned APP，拒绝 `local-development-only` 产物。
+- 源码打包与 `.gitignore` 增加 P12 / PFX / Provisioning Profile 敏感文件保护。
+- 文档明确自签名不授予 Apple Team ID、Network Extension / Packet Tunnel entitlement 或公证。
+
 ## v0.0.7
 
 - 基于 v0.0.6 治理兼容修复版升级正式版本号，保留无签名 arm64 构建。

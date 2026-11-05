@@ -16,7 +16,7 @@ GitHub Releases 页面是长期下载入口：
 | `SHA256SUMS.txt` | SHA-256 校验 |
 | `RELEASE-MANIFEST.json` | Release 资产清单 |
 
-普通用户下载 APP ZIP；开发者下载 source ZIP。
+普通用户下载 APP ZIP；开发者下载 source ZIP。本地开发者可以在自己的 Mac 上单独生成 local-signed 测试包，但它不会上传到 GitHub Releases。
 
 ## 安装说明
 
@@ -26,6 +26,17 @@ GitHub Releases 页面是长期下载入口：
 4. 解压并确认包含 `Clash.app`。
 5. 将 APP 移入 `/Applications`。
 6. 无签名 APP 可能被 macOS 阻止启动；本项目不提供签名或公证，是否允许启动取决于系统安全策略。
+
+## 本地自签名开发包（不在 Releases 中）
+
+导入本地示例 P12 到 macOS 登录钥匙串后，可在项目源码根目录执行：
+
+```bash
+bash scripts/check-local-signing-identity.sh
+bash scripts/build-local-signed-app.sh --output build/local-signed
+```
+
+生成的 `macos-arm64-local-signed.zip` 仅供开发者本机验证 Xcode 代码签名；它不是 Apple Developer ID，也不进入正式 Release。不要将本地 P12 或私钥提交到 Git。
 
 ## VPN / Packet Tunnel 限制
 

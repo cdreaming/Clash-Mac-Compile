@@ -13,7 +13,7 @@ def marker(t,k,d):
     m=re.search(rf"<!--\s*{re.escape(k)}:\s*([^>]+?)\s*-->",t); return m.group(1).strip() if m else d
 def sensitive(rel):
     low=rel.as_posix().lower()
-    return rel.name==".env" or "/.env." in "/"+low or low.endswith((".secret",".token",".key",".pem")) or any(x.lower() in {"secrets","credentials","runtime"} for x in rel.parts)
+    return rel.name==".env" or "/.env." in "/"+low or low.endswith((".secret",".token",".key",".pem",".p12",".pfx",".mobileprovision",".provisionprofile")) or any(x.lower() in {"secrets","credentials","runtime"} for x in rel.parts)
 def zi(name,ex=False):
     z=zipfile.ZipInfo(name,FIXED); z.compress_type=zipfile.ZIP_DEFLATED; z.create_system=3
     z.external_attr=((0o755 if ex else 0o644)&0xFFFF)<<16; return z

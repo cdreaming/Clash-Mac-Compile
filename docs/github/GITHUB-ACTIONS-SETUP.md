@@ -65,3 +65,15 @@ Release 说明区会解释无签名 APP ZIP、源码 ZIP、构建元数据、SHA
 本项目不需要 Apple Developer Program、Developer ID 证书、Provisioning Profile 或 Notary API Key。Build、Release 和 Weekly Preview 都直接使用 `CODE_SIGNING_ALLOWED=NO`。
 
 Release 页面会上传无签名 APP ZIP、源码 ZIP、BUILD-METADATA、SHA-256 和下载说明。请注意，无签名版本不能保证 macOS VPN / Packet Tunnel 系统授权成功。
+
+
+## 本地自签名开发构建
+
+v0.0.8 提供开发者本机的可选自签名模式。先将单独分发的 `Clash_Mac_Compile_Local_Dev.p12` 导入 macOS 登录钥匙串，再执行：
+
+```bash
+bash scripts/check-local-signing-identity.sh
+bash scripts/build-local-signed-app.sh --output build/local-signed
+```
+
+该流程只在开发 Mac 本机运行，不在 GitHub Actions 中执行，也不会上传本地签名 ZIP 到 Releases。P12 私钥不得提交到 Git 或放入 GitHub Secrets。它不是 Apple Developer ID，不能授权 Network Extension / Packet Tunnel。

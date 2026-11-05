@@ -146,6 +146,10 @@ def main() -> int:
 
 本版使用 Swift `-O` 运行速度优先构建。它是编译器优化策略，不代表已经完成 Instruments 实测；实际 CPU、内存、启动和 UI 流畅度仍需在目标 Mac 上测量。
 
+## 本地自签名开发
+
+开发者可在自己的 Mac 导入单独提供的 `Clash_Mac_Compile Local Development` 自签名身份，并运行 `scripts/build-local-signed-app.sh` 测试本地 Xcode 代码签名。该本地包不上传 GitHub Releases，也不授予 Apple Network Extension / Packet Tunnel entitlement。GitHub Weekly Preview 始终保持 unsigned。
+
 ## 发布通道
 
 这是 GitHub Pre-release / Weekly Preview，不是稳定版。确认 GUI 和非 VPN 功能后，再由维护者决定是否提升为 Stable Release。

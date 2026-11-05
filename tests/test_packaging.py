@@ -19,7 +19,7 @@ class PackagingTests(unittest.TestCase):
         with zipfile.ZipFile(self.z) as z: names=[x.filename.lower() for x in z.infolist()]
         for n in names:
             self.assertNotIn("/.dev-state/",n); self.assertNotIn("/runtime/",n)
-            self.assertFalse(n.endswith((".secret",".token",".key",".pem")))
+            self.assertFalse(n.endswith((".secret",".token",".key",".pem",".p12",".pfx",".mobileprovision",".provisionprofile")))
     def test_manifest_asset_set(self):
         actual={p.name for p in (ROOT/"dist").iterdir() if p.is_file()}
         self.assertEqual(set(self.m["assets"]),actual)
