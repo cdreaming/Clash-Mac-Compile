@@ -1,5 +1,15 @@
 # Version Changelog
 
+## v0.1.0
+
+- 将 ProjectClash macOS Packet Tunnel target 从 App Extension 迁移为 XcodeGen System Extension。
+- 将主 APP 与 provider 的 Network Extension entitlement 改为 `packet-tunnel-provider-systemextension`，并给主 APP 增加 `com.apple.developer.system-extension.install`。
+- 主 APP 链接 SystemExtensions.framework；XcodeGen 将 provider 嵌入 `Contents/Library/SystemExtensions`。
+- 在 VPN preference 保存之前调用 `OSSystemExtensionRequest.activationRequest`，等待用户批准与扩展激活结果。
+- 新增 `patch-macos-system-extension.py`、`audit-vpn-architecture.py` 和 `VPN-ARCHITECTURE-REPORT.json`。
+- Build / Release / Weekly 都检查 System Extension 结构并附带架构报告；GitHub 构建仍 unsigned，明确不具备 Apple VPN 授权。
+- 保留 arm64、Swift `-O`、本地自签名开发模式和私钥防泄漏。
+
 ## v0.0.9
 
 - 修复 v0.0.8 GitHub Release 附件阶段 `BUILD-METADATA.json` 因字面量 `\\n` 后缀而报 `JSONDecodeError: Extra data` 的问题。

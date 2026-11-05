@@ -48,7 +48,11 @@ def main() -> int:
         raise RuntimeError("RELEASE-MANIFEST.json missing; run scripts/build-release.py first")
 
     zip_name = f"Clash_Mac_Compile-v{args.version}-macos-arm64-unsigned.zip"
-    required = [source / zip_name, source / "BUILD-METADATA.json"]
+    required = [
+        source / zip_name,
+        source / "BUILD-METADATA.json",
+        source / "VPN-ARCHITECTURE-REPORT.json",
+    ]
     for item in required:
         if not item.is_file():
             raise RuntimeError(f"Required macOS release asset missing: {item}")
@@ -58,6 +62,14 @@ def main() -> int:
         raise RuntimeError("This project version only accepts an explicitly unsigned APP build.")
     if metadata.get("signing") != "disabled" or metadata.get("vpn_authorization_supported") is not False:
         raise RuntimeError("APP metadata must clearly identify disabled signing and unsupported VPN authorization.")
+
+    vpn_report = load_json(source / "VPN-ARCHITECTURE-REPORT.json", "VPN-ARCHITECTURE-REPORT.json")
+    if vpn_report.get("provider_target_type") != "system-extension":
+        raise RuntimeError("VPN architecture report does not identify a macOS System Extension target.")
+    if vpn_report.get("distribution_architecture_ready") is not True or vpn_report.get("system_extension_packaged") is not True:
+        raise RuntimeError("VPN architecture report does not confirm System Extension packaging.")
+    if metadata.get("vpn_architecture") != "macos-system-extension":
+        raise RuntimeError("BUILD-METADATA.json must identify the macOS System Extension architecture.")
 
     manifest = load_json(manifest_path, "RELEASE-MANIFEST.json")
     if manifest.get("project_version") != args.version:
@@ -73,9 +85,13 @@ def main() -> int:
     manifest["assets"] = sorted(assets + ["SHA256SUMS.txt", "RELEASE-MANIFEST.json"])
     manifest["macos_app"] = zip_name
     manifest["distribution_mode"] = "unsigned"
+    manifest["vpn_architecture"] = "macos-system-extension"
+    manifest["system_extension_packaged"] = True
     manifest["vpn_authorization_supported"] = False
+    manifest["vpn_architecture_report"] = "VPN-ARCHITECTURE-REPORT.json"
     manifest["release_notice"] = (
-        "Unsigned macOS app. Packet Tunnel / Network Extension VPN authorization is not supported."
+        "The Packet Tunnel is packaged as a macOS System Extension, but this unsigned build has no Apple Developer ID, "
+        "Apple-authorized Network Extension entitlement or provisioning profile. System Extension activation and VPN authorization are not supported."
     )
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -87,7 +103,7 @@ def main() -> int:
         sums.append(f"{sha(dist / name)}  {name}")
     (dist / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", encoding="utf-8")
 
-    print(f"Attached unsigned macOS assets: {zip_name}, BUILD-METADATA.json")
+    print(f"Attached unsigned macOS assets: {zip_name}, BUILD-METADATA.json, VPN-ARCHITECTURE-REPORT.json")
     return 0
 
 

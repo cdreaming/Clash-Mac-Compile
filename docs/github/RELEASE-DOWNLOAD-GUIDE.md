@@ -40,7 +40,7 @@ bash scripts/build-local-signed-app.sh --output build/local-signed
 
 ## VPN / Packet Tunnel 限制
 
-本项目不使用 Apple Developer Team、Developer ID 证书、Provisioning Profile 或 Apple 公证服务。
+本项目当前 GitHub 构建不使用 Apple Developer Team、Developer ID 证书、Provisioning Profile 或 Apple 公证服务。v0.1.0 已将 Packet Tunnel 架构迁移为 System Extension，但 unsigned 产物仍不能激活 VPN。
 
 - APP 可以由 GitHub Actions 编译并上传到 Releases。
 - “重试，并允许添加 VPN 配置”可能不会弹出系统授权提示。

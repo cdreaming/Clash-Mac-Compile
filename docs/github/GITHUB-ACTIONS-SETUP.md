@@ -77,3 +77,10 @@ bash scripts/build-local-signed-app.sh --output build/local-signed
 ```
 
 该流程只在开发 Mac 本机运行，不在 GitHub Actions 中执行，也不会上传本地签名 ZIP 到 Releases。P12 私钥不得提交到 Git 或放入 GitHub Secrets。它不是 Apple Developer ID，不能授权 Network Extension / Packet Tunnel。
+
+
+## macOS System Extension 构建报告
+
+v0.1.0 的 Build / Release / Weekly 工作流会将 Packet Tunnel target 转换为 macOS System Extension，重新生成 Xcode 工程，并在 APP 构建后执行 `scripts/audit-vpn-architecture.py`。报告 `VPN-ARCHITECTURE-REPORT.json` 会随构建 Artifact 和 Release 上传，包含 target 类型、Bundle ID、App Groups、Entitlements、System Extension 嵌入路径和签名 / Apple 授权状态。
+
+GitHub 构建仍为 unsigned。System Extension 架构检查通过不代表 Apple VPN entitlement 已获授权；真正激活仍需要 Apple Developer ID、授权的 Network Extension entitlement / profile 和公证分发。

@@ -38,6 +38,8 @@ def main() -> int:
         "scripts/build-local-signed-app.sh",
         "scripts/check-local-signing-identity.sh",
         "scripts/verify-local-signed-app.sh",
+        "scripts/patch-macos-system-extension.py",
+        "scripts/audit-vpn-architecture.py",
         ".github/workflows/build-macos.yml",
         ".github/workflows/release.yml",
         ".github/workflows/upstream-weekly.yml",
@@ -51,6 +53,9 @@ def main() -> int:
         "ProjectClash/Clash-Client.git",
         "scripts/bootstrap.py",
         "scripts/configure.py",
+        "scripts/patch-macos-system-extension.py",
+        "scripts/audit-vpn-architecture.py",
+        "xcodegen generate",
         "ClashmacOS",
         "CODE_SIGNING_ALLOWED=NO",
         "CODE_SIGNING_ALLOWED=YES",
@@ -61,7 +66,10 @@ def main() -> int:
         'SWIFT_OPTIMIZATION_LEVEL="$SWIFT_OPTIMIZATION_LEVEL"',
         '"distribution_mode": "local-development-only" if local else "unsigned"',
         '"apple_entitlements_authorized": False',
-        '"vpn_authorization_supported": False',
+        '"vpn_authorization_supported": bool(vpn_report.get("vpn_authorization_supported", False)) and not local',
+        '"vpn_architecture": "macos-system-extension"',
+        '"system_extension_packaged": bool(vpn_report.get("system_extension_packaged"))',
+        'VPN-ARCHITECTURE-REPORT.json',
     ):
         if token not in script_text:
             raise RuntimeError(f"Build script is missing required feature: {token}")
@@ -80,6 +88,33 @@ def main() -> int:
         raise RuntimeError("Do not use the legacy lipo -verify_arch argument order with Xcode 27")
     if "x86_64" in script_text:
         raise RuntimeError("This version must build Apple Silicon arm64 only")
+
+    migration_text = (ROOT / "scripts/patch-macos-system-extension.py").read_text(encoding="utf-8")
+    for token in (
+        'extension["type"] = "system-extension"',
+        "packet-tunnel-provider-systemextension",
+        "com.apple.developer.system-extension.install",
+        "SystemExtensions.framework",
+        "ClashMacSystemExtensionActivator.activate",
+        "OSSystemExtensionRequest.activationRequest",
+    ):
+        if token not in migration_text:
+            raise RuntimeError(f"System Extension migration patch is missing: {token}")
+
+    audit_text = (ROOT / "scripts/audit-vpn-architecture.py").read_text(encoding="utf-8")
+    for token in (
+        "Contents/Library/SystemExtensions",
+        "provider_bundle_identifier_matches_app",
+        "provider_embedded_by_host_app",
+        "shared_app_group_available",
+        "vpn_authorization_supported",
+    ):
+        if token not in audit_text:
+            raise RuntimeError(f"VPN architecture audit is missing: {token}")
+
+    attach_text = (ROOT / "scripts/attach-release-assets.py").read_text(encoding="utf-8")
+    if "VPN-ARCHITECTURE-REPORT.json" not in attach_text or "distribution_architecture_ready" not in attach_text:
+        raise RuntimeError("Release attachment must validate the VPN architecture report")
 
     local_wrapper = (ROOT / "scripts/build-local-signed-app.sh").read_text(encoding="utf-8")
     identity_check = (ROOT / "scripts/check-local-signing-identity.sh").read_text(encoding="utf-8")
@@ -105,6 +140,8 @@ def main() -> int:
         raise RuntimeError("Build workflow must limit Xcode jobs to 2")
     if "macos-arm64-unsigned" not in build_text:
         raise RuntimeError("GitHub Build workflow must remain unsigned")
+    if "VPN-ARCHITECTURE-REPORT.json" not in build_text:
+        raise RuntimeError("GitHub Build workflow must upload the VPN architecture report")
     if "CLASH_SIGNING_MODE" in build_text:
         raise RuntimeError("GitHub Build workflow must not attempt to use a developer's local Keychain")
     if "CODE_SIGNING_ALLOWED=NO" not in script_text:
@@ -125,8 +162,6 @@ def main() -> int:
 
     if "scripts/check-build-config.py --release" not in release_text:
         raise RuntimeError("Release workflow must enforce immutable upstream source")
-    if "scripts/attach-release-assets.py" not in release_text:
-        raise RuntimeError("Release workflow must attach the unsigned APP and metadata")
     if "scripts/attach-release-assets.py" not in release_text:
         raise RuntimeError("GitHub Release must attach the unsigned APP through the guarded asset script")
 

@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.0.9`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.0`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -59,10 +59,10 @@
 `VERSION` 是项目版本唯一事实源。每一轮功能、脚本或构建配置改动都应提升项目版本，不要复用已发布版本：
 
 ```bash
-python3 scripts/prepare-version.py --version 0.0.9 --risk L2 --write
+python3 scripts/prepare-version.py --version 0.1.1 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题；v0.1.0 将 macOS Packet Tunnel 迁移为 System Extension 并增加激活流程。
 
 ## 上游版本可复现性
 
@@ -74,23 +74,27 @@ python3 scripts/prepare-version.py --version 0.0.9 --risk L2 --write
 
 Kernel 与 Adapter 不需要在本项目重复维护版本号；它们由所选 Client commit 内的 `Dependencies.lock.json` 固定。
 
-## 本地自签名开发模式与 VPN 限制
+## macOS System Extension / VPN 架构
 
-本项目保留两条彼此隔离的构建路径：
+v0.1.0 在构建阶段对固定的 ProjectClash Client checkout 应用确定性补丁：
 
-- GitHub Build / Release / Weekly Preview：默认 `CODE_SIGNING_ALLOWED=NO`，不需要 Apple Developer Program 或任何 Apple Developer Secrets。
-- 开发者本机：可选使用 `Clash_Mac_Compile Local Development` 自签名身份测试 Xcode 代码签名；不上传 GitHub，不进入源码 ZIP。
+- `ClashmacOSExtension` 从 `app-extension` 转为 `system-extension`。
+- 主 APP 与 provider 使用 `packet-tunnel-provider-systemextension` entitlement。
+- 主 APP 增加 `com.apple.developer.system-extension.install` 并链接 `SystemExtensions.framework`。
+- provider 由 XcodeGen 以 System Extension 产品类型嵌入 `Contents/Library/SystemExtensions`。
+- VPN 配置保存前先调用 `OSSystemExtensionRequest.activationRequest`，等待 macOS 用户批准和激活完成，再继续原有 VPN preference 保存流程。
+- 构建后生成 `VPN-ARCHITECTURE-REPORT.json`，检查 target、entitlements、激活调用链、扩展嵌入位置和签名身份。
 
-导入单独提供的本地 `.p12` 到 macOS 登录钥匙串后，运行：
+GitHub Build / Release / Weekly 仍然使用 unsigned 构建。系统扩展架构正确不等于 Apple 已授权：没有 Apple Developer ID、Apple 授权的 Network Extension entitlement / provisioning profile 和公证，macOS 仍会拒绝激活 VPN System Extension。
+
+本地开发者可继续导入单独提供的 `Clash_Mac_Compile Local Development` 自签名 P12，运行：
 
 ```bash
 bash scripts/check-local-signing-identity.sh
 bash scripts/build-local-signed-app.sh --output build/local-signed
 ```
 
-本地输出 `macos-arm64-local-signed.zip` 和 `LOCAL-SIGNING-REPORT.json`。自签名只验证本地代码签名流程，不是 Apple Developer ID，没有 Apple Team ID，也不授予 Network Extension、Packet Tunnel 或 System Extension entitlement。
-
-当前锁定的 ProjectClash Client 工程将 `ClashmacOSExtension` 声明为 `app-extension`，本项目没有擅自改写上游为 System Extension。无论本地签名是否成功，VPN 系统授权仍不能保证成功；正式启用 VPN 需要 Apple 授权的签名与能力配置。详细说明见 `docs/local-development/LOCAL-CODE-SIGNING.md`。
+本地自签名仅用于测试代码签名流程，不授予 Apple Team ID、Network Extension 或 System Extension 权限。GitHub Releases 只发布 unsigned APP，不上传本地 P12 或 local-signed 包。详细说明见 `docs/local-development/LOCAL-CODE-SIGNING.md`。
 
 ## GitHub Releases 下载
 
@@ -98,7 +102,7 @@ bash scripts/build-local-signed-app.sh --output build/local-signed
 
 <https://github.com/cdreaming/Clash-Mac-Compile/releases>
 
-每个 Release 的说明区提供版本来源、兼容性、安装步骤、配置目录、无签名状态、VPN 限制和资产说明。普通用户优先下载 `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`；完整构建工程下载 `Clash_Mac_Compile_vX.Y.Z_source.zip`。详细说明见 `docs/github/RELEASE-DOWNLOAD-GUIDE.md`。
+每个 Release 的说明区提供版本来源、兼容性、安装步骤、配置目录、无签名状态、VPN 限制和资产说明。普通用户优先下载 `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`；完整构建工程下载 `Clash_Mac_Compile_vX.Y.Z_source.zip`。下载说明同时提供 `VPN-ARCHITECTURE-REPORT.json`，说明 System Extension 是否嵌入及 Apple 授权状态。详细说明见 `docs/github/RELEASE-DOWNLOAD-GUIDE.md`。
 
 ## 每周上游自动检查
 

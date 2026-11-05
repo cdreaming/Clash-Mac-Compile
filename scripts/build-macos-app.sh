@@ -125,6 +125,13 @@ python3 "$CLIENT_DIR/scripts/configure.py" \
   --bundle-base com.cdreaming.clash \
   --team ""
 
+echo "==> Migrate macOS Packet Tunnel to direct-distribution System Extension architecture"
+python3 "$ROOT/scripts/patch-macos-system-extension.py" --client-dir "$CLIENT_DIR"
+(
+  cd "$CLIENT_DIR/apple/ClashClient"
+  xcodegen generate
+)
+
 echo "==> Build native macOS app (arm64, $SIGNING_MODE, runtime-speed priority)"
 XCODEBUILD_ARGS=(
   -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj"
@@ -196,6 +203,12 @@ echo "APP executable architectures: $ARCHS_FOUND"
   exit 1
 }
 
+echo "==> Audit System Extension packaging and VPN activation flow"
+python3 "$ROOT/scripts/audit-vpn-architecture.py" \
+  --client-dir "$CLIENT_DIR" \
+  --app "$APP_PATH" \
+  --output "$OUTPUT_DIR/VPN-ARCHITECTURE-REPORT.json"
+
 if [[ "$SIGNING_MODE" == "local" ]]; then
   ZIP_NAME="Clash_Mac_Compile-v${VERSION}-macos-arm64-local-signed.zip"
   rm -f "$OUTPUT_DIR/Clash_Mac_Compile-v${VERSION}-macos-arm64-unsigned.zip"
@@ -212,14 +225,15 @@ ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
 python3 - "$ROOT" "$CLIENT_DIR" "$CLIENT_SHA" "$VERSION" "$BUILD_NUMBER" "$ZIP_NAME" \
   "$OUTPUT_DIR/BUILD-METADATA.json" "$BUILD_JOBS" "$SWIFT_OPTIMIZATION_LEVEL" \
-  "$SIGNING_MODE" "$SIGNING_IDENTITY" <<'PY'
+  "$SIGNING_MODE" "$SIGNING_IDENTITY" "$OUTPUT_DIR/VPN-ARCHITECTURE-REPORT.json" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
 
-root, client, client_sha, version, build_number, artifact, output, build_jobs, swift_optimization, signing_mode, signing_identity = sys.argv[1:]
+root, client, client_sha, version, build_number, artifact, output, build_jobs, swift_optimization, signing_mode, signing_identity, vpn_report_path = sys.argv[1:]
 root = Path(root)
 client = Path(client)
 lock = json.loads((client / "Dependencies.lock.json").read_text(encoding="utf-8"))
+vpn_report = json.loads(Path(vpn_report_path).read_text(encoding="utf-8"))
 
 def cmd(*args):
     return subprocess.check_output(args, text=True).strip()
@@ -244,7 +258,11 @@ metadata = {
     "apple_entitlements_authorized": False,
     "notarized": False,
     "distribution_mode": "local-development-only" if local else "unsigned",
-    "vpn_authorization_supported": False,
+    "vpn_architecture": "macos-system-extension",
+    "vpn_activation_flow": "OSSystemExtensionRequest-before-NETunnelProviderManager-save",
+    "system_extension_packaged": bool(vpn_report.get("system_extension_packaged")),
+    "vpn_architecture_report": "VPN-ARCHITECTURE-REPORT.json",
+    "vpn_authorization_supported": bool(vpn_report.get("vpn_authorization_supported", False)) and not local,
     "limitations": [
         "Local self-signed identity verifies local code-signing mechanics only; it is not an Apple Developer ID.",
         "A local self-signed identity does not authorize Network Extension, Packet Tunnel or System Extension installation.",
@@ -272,7 +290,7 @@ PY
 
 (
   cd "$OUTPUT_DIR"
-  ASSETS=("$ZIP_NAME" "BUILD-METADATA.json")
+  ASSETS=("$ZIP_NAME" "BUILD-METADATA.json" "VPN-ARCHITECTURE-REPORT.json")
   if [[ -f "LOCAL-SIGNING-REPORT.json" ]]; then
     ASSETS+=("LOCAL-SIGNING-REPORT.json")
   fi
@@ -282,6 +300,7 @@ PY
 echo "Build complete:"
 echo "  APP: $ZIP_PATH"
 echo "  Metadata: $OUTPUT_DIR/BUILD-METADATA.json"
+echo "  VPN architecture report: $OUTPUT_DIR/VPN-ARCHITECTURE-REPORT.json"
 echo "  Architecture: arm64"
 if [[ "$SIGNING_MODE" == "local" ]]; then
   echo "  Signing: local self-signed ($SIGNING_IDENTITY)"

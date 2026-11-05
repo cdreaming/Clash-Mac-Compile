@@ -112,8 +112,9 @@ def main() -> int:
 - 架构：Apple Silicon `arm64`。
 - Swift 优化：`-O`，运行速度优先。
 - Xcode 并行任务：最多 2。
-- 签名：关闭，不需要 Apple Developer 证书。
-- VPN 限制：无签名构建不支持 Packet Tunnel / Network Extension 系统授权。
+- 签名：GitHub Preview 关闭签名，不需要 Apple Developer Secrets。
+- VPN 架构：Packet Tunnel 使用 macOS System Extension，并在保存 VPN 配置前请求系统激活。
+- VPN 限制：unsigned 构建没有 Apple Developer ID / 授权 entitlement / profile，系统扩展不能保证激活。
 
 ## 下载资产说明
 
@@ -121,7 +122,8 @@ def main() -> int:
 |---|---|
 | `Clash_Mac_Compile-v{version}-macos-arm64-unsigned.zip` | Apple Silicon macOS 原生 APP（无签名） |
 | `Clash_Mac_Compile_v{version}_source.zip` | 完整构建工程源码 |
-| `BUILD-METADATA.json` | 上游 commit、Xcode、Go 和优化配置 |
+| `BUILD-METADATA.json` | 上游 commit、Xcode、Go、优化和 VPN 架构配置 |
+| `VPN-ARCHITECTURE-REPORT.json` | System Extension target、嵌入位置、签名与授权审计 |
 | `SHA256SUMS.txt` | 下载文件完整性校验 |
 | `RELEASE-MANIFEST.json` | Release 资产清单 |
 
@@ -134,7 +136,7 @@ def main() -> int:
 
 ## VPN 与配置目录限制
 
-本版本不使用 Apple Developer 签名、Provisioning Profile 或公证服务。点击“重试，并允许添加 VPN 配置”时，macOS 可能不会弹出授权提示，Packet Tunnel 也不能保证创建或启动。
+本版本的 GitHub Preview 使用 System Extension 架构，并在 VPN 配置保存前请求系统激活。但 Preview 不使用 Apple Developer 签名、Provisioning Profile 或公证服务；macOS 可能拒绝激活，VPN 配置授权仍不可用。
 
 预期 App Group 路径（仅供参考，未签名版本不保证该目录存在）：
 
@@ -217,7 +219,7 @@ def main() -> int:
 
 ## 已知限制 / 尚未验证
 
-- 本版无签名，不支持 Packet Tunnel / Network Extension 系统授权。
+- 本版 Packet Tunnel 已打包为 System Extension，但 unsigned 构建没有 Apple Developer 授权，不能保证系统激活或 VPN 配置授权。
 - macOS Gatekeeper 是否允许启动取决于系统安全策略。
 - Instruments 运行性能基准尚未在目标 Mac 完成。
 """, encoding="utf-8"
@@ -230,7 +232,7 @@ def main() -> int:
 
 自动化仅在上游 SHA 变化时递增 Patch 版本。APP 构建成功后才会提交 main、创建 tag 和 GitHub Pre-release。失败时不创建 tag / Release。
 
-本版本使用 Swift `-O`，后续必须以 Instruments 的可重复基准比较启动、CPU、内存、网络和 UI 响应。
+本版本使用 Swift `-O`，后续必须以 Instruments 的可重复基准比较启动、CPU、内存、网络和 UI 响应。System Extension 架构与授权状态见 `VPN-ARCHITECTURE-REPORT.json`。
 """, encoding="utf-8"
     )
 

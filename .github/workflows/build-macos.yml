@@ -68,6 +68,7 @@ jobs:
           path: |
             build/ci/Clash_Mac_Compile-v${{ steps.version.outputs.value }}-macos-arm64-unsigned.zip
             build/ci/BUILD-METADATA.json
+            build/ci/VPN-ARCHITECTURE-REPORT.json
             build/ci/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
