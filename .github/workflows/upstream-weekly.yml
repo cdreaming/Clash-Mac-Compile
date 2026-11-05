@@ -112,6 +112,21 @@ jobs:
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
         run: bash scripts/build-macos-app.sh --output build/release
 
+      - name: Upload Xcode linker diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Clash_Mac_Compile-weekly-linker-diagnostics-${{ github.run_id }}
+          path: |
+            build/release/XCODEBUILD.log
+            build/release/LINKER-DIAGNOSTICS.txt
+            build/release/XCODEBUILD-EXIT-CODE.txt
+            build/release/ClashmacOSExtension-BuildSettings.json
+            build/release/ClashmacOSExtension-BuildSettings.stderr.log
+            build/release/ClashClient-project.system-extension.yml
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Build versioned source package
         run: python3 scripts/build-release.py
 

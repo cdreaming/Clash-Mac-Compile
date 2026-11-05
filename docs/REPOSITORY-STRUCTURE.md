@@ -11,10 +11,10 @@
 `│   └── TEMPLATE-MANIFEST.json` — 通用治理模板导出清单；排除 Clash_Mac_Compile 项目专属配置。
 `├── .github/` — GitHub 仓库自动化与协作配置；保存 AI 指令、PR 模板和 Actions 工作流。
 `│   ├── workflows/` — GitHub Actions 工作流；分别执行通用质量门禁、macOS APP 自动构建和正式 Release。
-`│   │   ├── build-macos.yml` — Push / PR / 手动触发的无签名 arm64 Swift -O 构建，上传 unsigned APP Artifact。
+`│   │   ├── build-macos.yml` — macOS arm64 无签名构建工作流；Xcode 失败时也上传完整 XCODEBUILD.log、LINKER-DIAGNOSTICS、扩展 Build Settings 和补丁后 XcodeGen spec。
 `│   │   ├── ci.yml` — main Push/PR 的通用质量门禁，并运行模板治理回归测试。
-`│   │   ├── release.yml` — Tag 触发无签名 APP 构建、源码打包、用户下载说明、GitHub Release 资产上传和线上校验。
-`│   │   └── upstream-weekly.yml` — 每周检查 ProjectClash Client；上游变化时自动递增 Patch、构建无签名 APP、提交、打 tag 并发布 Preview。
+`│   │   ├── release.yml` — Tag Release 工作流；Xcode 构建失败时仍上传 Linker 诊断 Artifact，成功时继续附加 APP、元数据和 VPN 架构报告。
+`│   │   └── upstream-weekly.yml` — 每周上游检查与自动 Preview；Xcode 构建失败时仍上传 Linker 诊断 Artifact。
 `│   ├── copilot-instructions.md` — GitHub Copilot 的项目专属开发规则。
 `│   └── pull_request_template.md` — PR 检查模板；要求标记风险等级、真实验证和经验沉淀。
 `├── docs/` — 长期文档根目录；保存架构、开发规则、GitHub 说明、Release 规则、版本归档和模板。
@@ -60,7 +60,8 @@
 `│   │   ├── v0.0.7.md` — v0.0.7 发布经验规则；将旧日志兼容和重发布预检故障转化为防回归要求。
 `│   │   ├── v0.0.8.md` — v0.0.8 发布经验；记录自签名身份与 Apple 授权 entitlement 的边界及私钥防泄漏规则。
 `│   │   ├── v0.0.9.md` — v0.0.9 发布经验；JSON 序列化结果必须通过真实生成和严格解析验证。
-`│   │   └── v0.1.0.md` — v0.1.0 发布经验；System Extension 结构迁移不等于 Apple Developer VPN entitlement 已获授权。
+`│   │   ├── v0.1.0.md` — v0.1.0 发布经验；System Extension 结构迁移不等于 Apple Developer VPN entitlement 已获授权。
+`│   │   └── v0.1.1.md` — v0.1.1 发布经验；System Extension 的 Frameworks 层级变化需同步调整依赖嵌入与 runpath，Xcode 失败必须保留完整日志。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -122,6 +123,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.1.0 发布经验；记录 Ad-hoc 签名与 App Extension 限制、System Extension 迁移及授权前提。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.1.0 macOS System Extension 架构升级说明、激活流程、GitHub unsigned 与 Apple VPN 授权边界。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.1.0 验证报告；记录源码测试结果，区分尚未执行的 XcodeGen、macOS 实机激活和 Apple Developer 授权。
+`│   │   ├── v0.1.1/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.1.1 开发日志；记录 System Extension Linker 依赖修正、verbose 日志和失败诊断上传。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — 当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.1.1 发布经验；记录 App Extension 到 System Extension 后 Framework 嵌入/runpath 迁移及完整 Linker 诊断保留。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.1.1 System Extension ClashMacCore framework embed/runpath 修正、Xcode Linker 诊断和失败 Artifact 上传说明。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.1.1 验证报告；记录 framework embed/runpath、Linker parser、CI 诊断上传测试和未执行的真实 Xcode Link。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -140,31 +147,33 @@
 `│   └── REPOSITORY-STRUCTURE.md` — 自动生成的仓库目录树；逐个文件夹和文件写明职责，并由 CI 校验不漂移。
 `├── scripts/` — 项目治理和 macOS 原生 APP 自动构建、配置校验、Release 资产脚本。
 `│   ├── attach-release-assets.py` — Release 资产附加脚本；要求 unsigned APP、BUILD-METADATA.json 和验证通过的 VPN-ARCHITECTURE-REPORT.json，生成 manifest 与 SHA-256。
-`│   ├── audit-vpn-architecture.py` — 审计 System Extension target、Bundle ID、App Groups、Network Extension entitlement、激活调用链、APP Contents/Library/SystemExtensions 嵌入路径和 Apple 授权状态，生成 VPN-ARCHITECTURE-REPORT.json。
+`│   ├── audit-vpn-architecture.py` — 审计 System Extension target、Bundle ID、App Groups、Network Extension entitlement、provider framework embed、Framework runpath、激活调用链和 APP 嵌入路径。
 `│   ├── bootstrap-project.py` — 把通用模板初始化为具体项目；重置项目历史并强制真实业务测试/simulation 重新配置。
 `│   ├── build-ai-handoff.py` — AI 唯一正式收尾入口；完成开发状态、candidate gate、Release build 并导出三类交接包。
 `│   ├── build-local-signed-app.sh` — 本机自签名构建入口；先检查 Keychain identity，再调用 build-macos-app.sh 的 local 模式，不在 GitHub Actions 中运行。
-`│   ├── build-macos-app.sh` — arm64 Swift -O 构建；默认 unsigned 或本地 self-signed；执行上游 System Extension 迁移、重新生成 Xcode 工程、构建后 VPN 架构审计并输出 VPN-ARCHITECTURE-REPORT.json。
+`│   ├── build-macos-app.sh` — arm64 Swift -O 构建脚本；System Extension 内嵌 ClashMacCore.framework 并修正 runpath；verbose xcodebuild 日志、失败 Build Settings 和 Linker Diagnostics 保留。
 `│   ├── build-release.py` — 生成确定性源码 ZIP、Release manifest 和 SHA-256；拒绝 P12 / PFX / 私钥 / Provisioning Profile 等敏感文件。
 `│   ├── build-source-manifest.py` — 生成/校验源码 SHA-256 清单；拒绝 symlink 和 Secret 进入受管源码集合。
-`│   ├── check-build-config.py` — 校验完整上游 SHA、arm64 Swift -O 无签名构建，以及不依赖 Apple Developer Secrets 的 Release / Weekly 工作流。
+`│   ├── check-build-config.py` — 检查版本、上游 SHA、System Extension 迁移、provider framework embed/runpath、Linker diagnostics parser 和 Build/Release/Weekly 失败 Artifact 上传契约。
 `│   ├── check-governance.py` — development/candidate/release/archive 四级治理门禁；验证结构、文档、状态和远端证据语义。
 `│   ├── check-local-signing-identity.sh` — 通过 security find-identity 检查本地 Clash_Mac_Compile Local Development 自签名身份是否在 macOS Keychain 中可用。
 `│   ├── dev-safe-run.py` — 高风险长任务安全执行器；提供 heartbeat、hard timeout、持久日志和退出状态。
 `│   ├── dev-session.py` — 开发会话状态与检查点工具；兼容旧版日志，自动补齐会话元数据和完成摘要，并提供 validate 预检命令。
 `│   ├── finalize-release-archive.py` — 仅用真实 GitHub URL、tag commit、Actions 与线上验证结果把 Release 归档标记为 complete。
-`│   ├── patch-macos-system-extension.py` — 在固定的 ProjectClash Client checkout 中将 macOS Packet Tunnel target 迁移为 XcodeGen system-extension，设置 systemextension entitlement，并在 VPN preference 保存前接入 OSSystemExtensionRequest 激活。
+`│   ├── patch-macos-system-extension.py` — 将 Packet Tunnel target 迁移为 XcodeGen system-extension，设置 entitlement、OSSystemExtensionRequest 激活、provider 内嵌 ClashMacCore.framework 和正确 Frameworks runpath。
 `│   ├── prepare-republish.py` — 重发布前先修复/验证开发日志，再写入历史、Checklist 和 RELEASE_REVISION，避免预检失败造成发布状态半更新。
 `│   ├── prepare-version.py` — 创建下一项目版本；生成全套版本文档、可选深度升级计划并同步结构/manifest。
 `│   ├── prepare-weekly-upstream-release.py` — 每周上游变化时自动递增 Patch 并生成无签名 Preview 文档；开发日志自动包含完成摘要章节。
 `│   ├── run-quality-gates.py` — 统一质量门禁执行器；串行运行治理、静态、单元、集成、smoke、安全和模拟。
 `│   ├── run-simulated-environment.py` — 建立没有 Git/缓存/Secret 的 clean-room 临时工作区并运行真实项目 simulation。
 `│   ├── set-release-disposition.py` — 把未正式发布的旧版本按事实标记为 superseded/abandoned/failed，不阻塞后续开发。
+`│   ├── summarize-xcode-linker-errors.py` — 解析 XCODEBUILD.log，提取 Undefined symbols、duplicate symbol、framework/library not found、ld 和 clang linker 错误及上下文，生成 LINKER-DIAGNOSTICS.txt。
 `│   ├── update-repository-structure.py` — 同步职责 catalog 并自动生成/校验逐文件逐目录 Repository Structure。
 `│   ├── verify-github-release.sh` — GitHub Release 后置验证；认证下载线上资产并检查集合、SHA-256、Release Notes 和可选匿名探针。
 `│   └── verify-local-signed-app.sh` — 使用 codesign 验证主 APP 与嵌套 App Extension 的本地签名，并生成不宣称 Apple entitlement 授权的 JSON 报告。
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
 `│   ├── test_governance.py` — 治理回归测试；覆盖旧日志缺少完成摘要/会话标记、重发布预检失败时不修改发布状态等场景。
+`│   ├── test_linker_diagnostics.py` — Xcode Linker 诊断解析器回归测试；验证 undefined symbols、linker command failed 和无标准错误日志的处理。
 `│   ├── test_packaging.py` — 源码包 ZIP、SHA-256、确定性打包和敏感密钥扩展名拒绝测试。
 `│   ├── test_project.py` — v0.0.9 项目回归测试；包含本地签名隔离、metadata writer 严格 JSON、Release JSON 错误定位、每周版本递增和私钥防泄漏。
 `│   └── test_vpn_architecture.py` — 4 项 VPN 架构回归测试；覆盖上游 XcodeGen target 转换、Entitlements、激活调用、补丁幂等、APP 嵌入路径和 Bundle ID 审计。
@@ -172,9 +181,9 @@
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。
 `├── AGENTS.md` — 仓库级 AI 规则与 Clash_Mac_Compile 专属上游、签名和验证约束。
-`├── BUILD-INFO.md` — v0.1.0 构建信息；说明 macOS System Extension target、OSSystemExtensionRequest 激活流程、arm64 Swift -O 和 unsigned / self-signed 边界。
+`├── BUILD-INFO.md` — v0.1.1 构建信息；包含 System Extension framework embed/runpath 和 Xcode Linker 诊断产物。
 `├── CHANGELOG.md` — 项目各版本变更记录；v0.0.7 记录旧版开发日志兼容、重发布预检和治理回归测试。
-`├── README.md` — v0.1.0 项目说明；介绍 ProjectClash 上游、System Extension 架构迁移、激活调用、GitHub 无签名发布和 Apple 授权边界。
+`├── README.md` — v0.1.1 项目说明；包含 System Extension 构建、Xcode Linker 日志和失败 Artifact 下载指引。
 `├── RELEASE_REVISION` — 同一项目 VERSION 的发布修订号；0 为原始发布，1/2… 对应 r1/r2 受控重发审计序号。
 `├── SECURITY.md` — Secret、Apple 签名材料、上游锁定与 GitHub Actions 安全策略。
 `├── SHA256SUMS.txt` — 仓库源码 SHA-256 清单；用于发现 AI 交接、结构更新或打包前的源码漂移。

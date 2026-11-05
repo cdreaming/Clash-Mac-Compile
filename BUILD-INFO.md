@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.0`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.1`）
 - 治理模板版本：`1.1.1`
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 目标平台：macOS
@@ -20,9 +20,20 @@
 - Network Extension entitlement：`packet-tunnel-provider-systemextension`。
 - Host app entitlement：`com.apple.developer.system-extension.install=true`。
 - Host app links `SystemExtensions.framework`。
-- System Extension embedded under `Contents/Library/SystemExtensions`。
+- Host app embeds provider under `Contents/Library/SystemExtensions`。
+- Provider embeds `ClashMacCore.framework` under its own `Contents/Frameworks`。
+- Provider runpath：`@executable_path/../Frameworks`。
 - VPN start flow requests `OSSystemExtensionRequest` activation before saving the VPN configuration.
 - Build output includes `VPN-ARCHITECTURE-REPORT.json` for structure / signature / entitlement audit.
+
+## Xcode Linker diagnostics
+
+- Verbose build log：`XCODEBUILD.log`。
+- Parsed error summary：`LINKER-DIAGNOSTICS.txt`。
+- Failed exit code：`XCODEBUILD-EXIT-CODE.txt`。
+- Provider resolved build settings：`ClashmacOSExtension-BuildSettings.json`。
+- Patched XcodeGen spec：`ClashClient-project.system-extension.yml`。
+- Build / Release / Weekly upload diagnostics with `if: always()`.
 
 ## 签名与授权边界
 
@@ -37,6 +48,7 @@
 - 本地 self-signed：`scripts/build-local-signed-app.sh --output build/local-signed`
 - 上游架构补丁：`scripts/patch-macos-system-extension.py`
 - VPN 架构审计：`scripts/audit-vpn-architecture.py`
+- Linker 诊断解析：`scripts/summarize-xcode-linker-errors.py`
 
 ## 产物
 
@@ -45,7 +57,9 @@
 - `Clash_Mac_Compile_vX.Y.Z_source.zip`
 - `BUILD-METADATA.json`
 - `VPN-ARCHITECTURE-REPORT.json`
-- `SHA256SUMS.txt`
+- `XCODEBUILD.log`
+- `LINKER-DIAGNOSTICS.txt`
+- `ClashmacOSExtension-BuildSettings.json`
 
 ## 安全
 

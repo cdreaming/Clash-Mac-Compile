@@ -134,9 +134,32 @@ def patch_project(project_file: Path) -> dict:
     if not isinstance(app, dict) or not isinstance(extension, dict):
         fail("Pinned upstream project.yml does not contain ClashmacOS / ClashmacOSExtension targets.")
 
+    core = targets.get("ClashMacCore")
+    if not isinstance(core, dict):
+        fail("Pinned upstream project.yml is missing the macOS ClashMacCore framework target.")
+
     extension["type"] = "system-extension"
-    extension.setdefault("settings", {}).setdefault("base", {})["PRODUCT_BUNDLE_IDENTIFIER"] = "$(CLASH_BUNDLE_BASE).packet-tunnel"
-    extension["settings"]["base"]["PRODUCT_NAME"] = "ClashmacOSExtension"
+    extension_base = extension.setdefault("settings", {}).setdefault("base", {})
+    extension_base["PRODUCT_BUNDLE_IDENTIFIER"] = "$(CLASH_BUNDLE_BASE).packet-tunnel"
+    extension_base["PRODUCT_NAME"] = "ClashmacOSExtension"
+
+    # A System Extension is nested one level deeper than the former .appex.
+    # Embed its dynamic ClashMacCore framework inside the provider itself so it
+    # does not depend on a fragile relative path back into the host app bundle.
+    extension_base["LD_RUNPATH_SEARCH_PATHS"] = [
+        "$(inherited)",
+        "@executable_path/../Frameworks",
+    ]
+    extension_dependencies = extension.setdefault("dependencies", [])
+    core_dependency = next(
+        (item for item in extension_dependencies
+         if isinstance(item, dict) and item.get("target") == "ClashMacCore"),
+        None
+    )
+    if core_dependency is None:
+        extension_dependencies.append({"target": "ClashMacCore", "embed": True})
+    else:
+        core_dependency["embed"] = True
 
     ext_entitlements = extension.setdefault("entitlements", {}).setdefault("properties", {})
     ext_entitlements["com.apple.developer.networking.networkextension"] = [
@@ -186,6 +209,8 @@ def patch_project(project_file: Path) -> dict:
             app_entitlements.get("com.apple.developer.system-extension.install")
         ),
         "system_extensions_framework_linked": True,
+        "provider_core_framework_embedded": True,
+        "provider_framework_runpath": "@executable_path/../Frameworks",
     }
 
 

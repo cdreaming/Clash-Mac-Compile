@@ -1,5 +1,15 @@
 # Version Changelog
 
+## v0.1.1
+
+- 修正 Packet Tunnel System Extension 对 `ClashMacCore` framework 的依赖：provider target 改为嵌入 framework，不再依赖 host app 的旧 `.appex` 相对路径。
+- 将 provider `LD_RUNPATH_SEARCH_PATHS` 设置为 `@executable_path/../Frameworks`，指向 System Extension 自身的 `Contents/Frameworks`。
+- 新增 `scripts/summarize-xcode-linker-errors.py`，提取 Undefined symbols、duplicate symbol、framework/library not found、ld 和 clang linker 错误及上下文。
+- Xcode 构建启用 verbose 日志并保留 `XCODEBUILD.log`、`LINKER-DIAGNOSTICS.txt`、退出码、System Extension Build Settings 和补丁后的 XcodeGen project spec。
+- Build、Release、Weekly workflow 增加 `if: always()` 诊断 Artifact 上传，确保构建失败时也能取回 linker 日志。
+- VPN 架构审计增加 provider framework embed 和 runpath 检查。
+- 保留 arm64、Swift `-O`、GitHub unsigned、本地自签名隔离和 Apple VPN 授权边界。
+
 ## v0.1.0
 
 - 将 ProjectClash macOS Packet Tunnel target 从 App Extension 迁移为 XcodeGen System Extension。

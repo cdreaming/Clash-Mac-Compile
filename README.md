@@ -8,7 +8,7 @@
 > 不得把本地静态检查写成 GitHub macOS Runner 已编译；不得伪造 GitHub Actions、Release、签名或安装测试证据。
 <!-- AI-REPOSITORY-HOOK: END -->
 
-**项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.0`）**  
+**项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.1`）**  
 **目标平台：macOS**  
 **GitHub：** <https://github.com/cdreaming/Clash-Mac-Compile>
 
@@ -38,6 +38,8 @@
 6. 使用 `ClashmacOS` Scheme、Release 配置，仅构建 `arm64`（Apple Silicon）。Swift Release 优化使用 `-O`，优先运行速度；Xcode 最大并行任务数限制为 2，以控制 Runner 资源。
 7. 使用 `lipo -archs` 检查 APP 主执行文件架构（兼容 Xcode 27），通过后将 `Clash.app` 打成 ZIP 并上传为 GitHub Actions Artifact。
 
+如果 Xcode Link 阶段失败，构建脚本会保留完整 `XCODEBUILD.log`、`LINKER-DIAGNOSTICS.txt`、`ClashmacOSExtension-BuildSettings.json` 和迁移后的 XcodeGen project spec。Build / Release / Weekly 工作流会在失败时也上传 `Xcode linker diagnostics` Artifact，便于定位具体 `ld:` 错误。
+
 构建成功后，在 GitHub 仓库的 **Actions → 对应运行记录 → Artifacts** 下载：
 
 - `Clash_Mac_Compile-vX.Y.Z-macos-arm64-unsigned.zip`
@@ -59,10 +61,10 @@
 `VERSION` 是项目版本唯一事实源。每一轮功能、脚本或构建配置改动都应提升项目版本，不要复用已发布版本：
 
 ```bash
-python3 scripts/prepare-version.py --version 0.1.1 --risk L2 --write
+python3 scripts/prepare-version.py --version 0.1.2 --risk L2 --write
 ```
 
-完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题；v0.1.0 将 macOS Packet Tunnel 迁移为 System Extension 并增加激活流程。
+完成新版本文档更新后再提交。普通 `main` 构建的 Artifact 会带项目版本和 Git commit 标识；v0.0.3 起仅生成 Apple Silicon arm64 产物；v0.0.4 修复 Xcode 27 的后置架构检查；v0.0.5 增加 Swift `-O` 运行速度优先构建与每周上游自动 Preview 发布；v0.0.6 移除 Apple Developer / Developer ID / Provisioning Profile / Notarization，统一为无签名构建；v0.0.7 修复旧版开发日志兼容和重发布预检，增加治理回归测试；v0.0.8 增加本地自签名开发模式；v0.0.9 修复 BUILD-METADATA.json 尾部转义导致 Release 附件失败的问题；v0.1.0 将 macOS Packet Tunnel 迁移为 System Extension 并增加激活流程；v0.1.1 修正 System Extension 内嵌 Framework/runpath，并保留完整 Xcode Linker 诊断。
 
 ## 上游版本可复现性
 

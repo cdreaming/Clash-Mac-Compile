@@ -16,7 +16,8 @@
       ],
       "unit": [
         "python3 -m unittest -q tests.test_project",
-        "python3 -m unittest -q tests.test_vpn_architecture"
+        "python3 -m unittest -q tests.test_vpn_architecture",
+        "python3 -m unittest -q tests.test_linker_diagnostics"
       ],
       "integration": [],
       "smoke": [],

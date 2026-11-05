@@ -162,7 +162,38 @@ else
   XCODEBUILD_ARGS+=(CODE_SIGNING_ALLOWED=NO)
 fi
 
-xcodebuild "${XCODEBUILD_ARGS[@]}" build
+XCODEBUILD_LOG="$OUTPUT_DIR/XCODEBUILD.log"
+LINKER_DIAGNOSTICS="$OUTPUT_DIR/LINKER-DIAGNOSTICS.txt"
+SYSTEM_EXTENSION_PROJECT_SPEC="$OUTPUT_DIR/ClashClient-project.system-extension.yml"
+cp "$CLIENT_DIR/apple/ClashClient/project.yml" "$SYSTEM_EXTENSION_PROJECT"
+
+echo "==> Build with verbose linker diagnostics"
+set +e
+xcodebuild -verbose "${XCODEBUILD_ARGS[@]}" build 2>&1 | tee "$XCODEBUILD_LOG"
+XCODEBUILD_STATUS=${PIPESTATUS[0]}
+set -e
+
+python3 "$ROOT/scripts/summarize-xcode-linker-errors.py" \
+  --log "$XCODEBUILD_LOG" \
+  --output "$LINKER_DIAGNOSTICS" || true
+
+if [[ "$XCODEBUILD_STATUS" -ne 0 ]]; then
+  echo "==> Xcode build failed; collecting System Extension build settings"
+  xcodebuild \
+    -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj" \
+    -target ClashmacOSExtension \
+    -configuration Release \
+    -showBuildSettings -json \
+    > "$OUTPUT_DIR/ClashmacOSExtension-BuildSettings.json" \
+    2> "$OUTPUT_DIR/ClashmacOSExtension-BuildSettings.stderr.log" || true
+  echo "$XCODEBUILD_STATUS" > "$OUTPUT_DIR/XCODEBUILD-EXIT-CODE.txt"
+  echo "Xcode build failed with exit code $XCODEBUILD_STATUS" >&2
+  echo "Full log: $XCODEBUILD_LOG" >&2
+  echo "Linker summary: $LINKER_DIAGNOSTICS" >&2
+  exit "$XCODEBUILD_STATUS"
+fi
+
+echo "Xcode build succeeded; full linker log retained at $XCODEBUILD_LOG"
 
 PRODUCT_DIR="$DERIVED_DATA/Build/Products/Release"
 APP_PATH="$PRODUCT_DIR/Clash.app"
@@ -202,6 +233,14 @@ echo "APP executable architectures: $ARCHS_FOUND"
   echo "Expected an arm64-only APP executable, found: $ARCHS_FOUND" >&2
   exit 1
 }
+
+xcodebuild \
+  -project "$CLIENT_DIR/apple/ClashClient/ClashClient.xcodeproj" \
+  -target ClashmacOSExtension \
+  -configuration Release \
+  -showBuildSettings -json \
+  > "$OUTPUT_DIR/ClashmacOSExtension-BuildSettings.json" \
+  2> "$OUTPUT_DIR/ClashmacOSExtension-BuildSettings.stderr.log" || true
 
 echo "==> Audit System Extension packaging and VPN activation flow"
 python3 "$ROOT/scripts/audit-vpn-architecture.py" \
@@ -290,7 +329,9 @@ PY
 
 (
   cd "$OUTPUT_DIR"
-  ASSETS=("$ZIP_NAME" "BUILD-METADATA.json" "VPN-ARCHITECTURE-REPORT.json")
+  ASSETS=("$ZIP_NAME" "BUILD-METADATA.json" "VPN-ARCHITECTURE-REPORT.json" \
+          "XCODEBUILD.log" "LINKER-DIAGNOSTICS.txt" \
+          "ClashClient-project.system-extension.yml" "ClashmacOSExtension-BuildSettings.json")
   if [[ -f "LOCAL-SIGNING-REPORT.json" ]]; then
     ASSETS+=("LOCAL-SIGNING-REPORT.json")
   fi
@@ -301,6 +342,8 @@ echo "Build complete:"
 echo "  APP: $ZIP_PATH"
 echo "  Metadata: $OUTPUT_DIR/BUILD-METADATA.json"
 echo "  VPN architecture report: $OUTPUT_DIR/VPN-ARCHITECTURE-REPORT.json"
+echo "  Xcode build log: $OUTPUT_DIR/XCODEBUILD.log"
+echo "  Linker diagnostics: $OUTPUT_DIR/LINKER-DIAGNOSTICS.txt"
 echo "  Architecture: arm64"
 if [[ "$SIGNING_MODE" == "local" ]]; then
   echo "  Signing: local self-signed ($SIGNING_IDENTITY)"

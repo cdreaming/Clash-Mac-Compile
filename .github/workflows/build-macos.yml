@@ -55,6 +55,21 @@ jobs:
         run: |
           bash scripts/build-macos-app.sh --output build/ci
 
+      - name: Upload Xcode linker diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Clash_Mac_Compile-linker-diagnostics-${{ github.run_id }}
+          path: |
+            build/ci/XCODEBUILD.log
+            build/ci/LINKER-DIAGNOSTICS.txt
+            build/ci/XCODEBUILD-EXIT-CODE.txt
+            build/ci/ClashmacOSExtension-BuildSettings.json
+            build/ci/ClashmacOSExtension-BuildSettings.stderr.log
+            build/ci/ClashClient-project.system-extension.yml
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Resolve artifact name
         id: version
         shell: bash

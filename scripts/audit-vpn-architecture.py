@@ -74,6 +74,15 @@ def main() -> int:
     shared_app_groups = sorted(app_groups.intersection(provider_groups))
     dependencies = app_target.get("dependencies", [])
     app_deps = [item.get("sdk") for item in dependencies if isinstance(item, dict) and item.get("sdk")]
+    provider_dependencies = extension_target.get("dependencies", [])
+    provider_core_dependency = next(
+        (item for item in provider_dependencies
+         if isinstance(item, dict) and item.get("target") == "ClashMacCore"),
+        None
+    )
+    provider_runpaths = extension_target.get("settings", {}).get("base", {}).get("LD_RUNPATH_SEARCH_PATHS", [])
+    if isinstance(provider_runpaths, str):
+        provider_runpaths = [provider_runpaths]
     provider_dependency = next(
         (item for item in dependencies
          if isinstance(item, dict) and item.get("target") == "ClashmacOSExtension"),
@@ -104,6 +113,9 @@ def main() -> int:
         "shared_app_group_available": bool(shared_app_groups),
         "system_extensions_framework_linked": "SystemExtensions.framework" in app_deps,
         "provider_embedded_by_host_app": bool(provider_dependency and provider_dependency.get("embed") is True),
+        "provider_core_framework_embedded": bool(provider_core_dependency and provider_core_dependency.get("embed") is True),
+        "provider_framework_runpaths": provider_runpaths,
+        "provider_framework_runpath_valid": "@executable_path/../Frameworks" in provider_runpaths,
         "activation_request_in_vpn_start_flow": "ClashMacSystemExtensionActivator.activate" in auth_source,
         "activation_helper_present": activator_path.is_file() and "OSSystemExtensionRequest.activationRequest" in activator_source,
         "vpn_manager_save_flow_present": "IPStackProfileWriter.awaitConfirmation" in auth_source,
@@ -137,6 +149,8 @@ def main() -> int:
         "shared_app_group_available": report["shared_app_group_available"],
         "system_extensions_framework_linked": report["system_extensions_framework_linked"],
         "provider_embedded_by_host_app": report["provider_embedded_by_host_app"],
+        "provider_core_framework_embedded": report["provider_core_framework_embedded"],
+        "provider_framework_runpath_valid": report["provider_framework_runpath_valid"],
         "activation_request_in_vpn_start_flow": report["activation_request_in_vpn_start_flow"],
         "activation_helper_present": report["activation_helper_present"],
         "vpn_manager_save_flow_present": report["vpn_manager_save_flow_present"],

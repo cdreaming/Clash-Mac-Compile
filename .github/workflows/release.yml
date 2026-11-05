@@ -117,6 +117,21 @@ jobs:
           CLASH_SWIFT_OPTIMIZATION_LEVEL: "-O"
         run: bash scripts/build-macos-app.sh --output build/release
 
+      - name: Upload Xcode linker diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Clash_Mac_Compile-release-linker-diagnostics-${{ github.run_id }}
+          path: |
+            build/release/XCODEBUILD.log
+            build/release/LINKER-DIAGNOSTICS.txt
+            build/release/XCODEBUILD-EXIT-CODE.txt
+            build/release/ClashmacOSExtension-BuildSettings.json
+            build/release/ClashmacOSExtension-BuildSettings.stderr.log
+            build/release/ClashClient-project.system-extension.yml
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Attach macOS app and build metadata
         run: |
           python3 scripts/attach-release-assets.py \

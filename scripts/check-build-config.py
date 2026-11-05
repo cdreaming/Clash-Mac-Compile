@@ -40,6 +40,7 @@ def main() -> int:
         "scripts/verify-local-signed-app.sh",
         "scripts/patch-macos-system-extension.py",
         "scripts/audit-vpn-architecture.py",
+        "scripts/summarize-xcode-linker-errors.py",
         ".github/workflows/build-macos.yml",
         ".github/workflows/release.yml",
         ".github/workflows/upstream-weekly.yml",
@@ -70,6 +71,11 @@ def main() -> int:
         '"vpn_architecture": "macos-system-extension"',
         '"system_extension_packaged": bool(vpn_report.get("system_extension_packaged"))',
         'VPN-ARCHITECTURE-REPORT.json',
+        'xcodebuild -verbose',
+        'tee "$XCODEBUILD_LOG"',
+        'PIPESTATUS[0]',
+        'ClashmacOSExtension-BuildSettings.json',
+        'LINKER-DIAGNOSTICS.txt',
     ):
         if token not in script_text:
             raise RuntimeError(f"Build script is missing required feature: {token}")
@@ -107,6 +113,8 @@ def main() -> int:
         "provider_bundle_identifier_matches_app",
         "provider_embedded_by_host_app",
         "shared_app_group_available",
+        "provider_core_framework_embedded",
+        "provider_framework_runpath_valid",
         "vpn_authorization_supported",
     ):
         if token not in audit_text:
@@ -129,6 +137,12 @@ def main() -> int:
     if "local-self-signed" not in script_text or '"apple_entitlements_authorized": False' not in script_text:
         raise RuntimeError("Local signing metadata must distinguish self-signing from Apple authorization")
 
+    diagnostics_text = (ROOT / "scripts/summarize-xcode-linker-errors.py").read_text(encoding="utf-8")
+    for token in ("Undefined symbols for architecture", "duplicate symbol", "framework not found",
+                  "library not found", "link(er)? command failed"):
+        if token not in diagnostics_text:
+            raise RuntimeError(f"Xcode linker diagnostic parser is missing: {token}")
+
     build_text = (ROOT / ".github/workflows/build-macos.yml").read_text(encoding="utf-8")
     if "runs-on: xcode-27" not in build_text:
         raise RuntimeError("Build workflow must use xcode-27")
@@ -142,6 +156,8 @@ def main() -> int:
         raise RuntimeError("GitHub Build workflow must remain unsigned")
     if "VPN-ARCHITECTURE-REPORT.json" not in build_text:
         raise RuntimeError("GitHub Build workflow must upload the VPN architecture report")
+    if "Upload Xcode linker diagnostics" not in build_text or "if: always()" not in build_text:
+        raise RuntimeError("Build workflow must upload linker diagnostics even when Xcode build fails")
     if "CLASH_SIGNING_MODE" in build_text:
         raise RuntimeError("GitHub Build workflow must not attempt to use a developer's local Keychain")
     if "CODE_SIGNING_ALLOWED=NO" not in script_text:
@@ -164,6 +180,10 @@ def main() -> int:
         raise RuntimeError("Release workflow must enforce immutable upstream source")
     if "scripts/attach-release-assets.py" not in release_text:
         raise RuntimeError("GitHub Release must attach the unsigned APP through the guarded asset script")
+    if "Upload Xcode linker diagnostics" not in release_text or "if: always()" not in release_text:
+        raise RuntimeError("Release workflow must upload linker diagnostics even when Xcode build fails")
+    if "Upload Xcode linker diagnostics" not in weekly_text or "if: always()" not in weekly_text:
+        raise RuntimeError("Weekly workflow must upload linker diagnostics even when Xcode build fails")
 
     for token in ('schedule:', 'timezone: "America/Los_Angeles"', 'contents: write',
                   "scripts/prepare-weekly-upstream-release.py", "--prerelease",

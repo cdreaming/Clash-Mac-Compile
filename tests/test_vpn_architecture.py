@@ -39,6 +39,12 @@ targets:
       - target: ClashmacOSExtension
         embed: true
       - sdk: NetworkExtension.framework
+  ClashMacCore:
+    type: framework
+    platform: macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(CLASH_BUNDLE_BASE).core
   ClashmacOSExtension:
     type: app-extension
     platform: macOS
@@ -112,6 +118,16 @@ enum VPNStartAuthorization {
             widgets = spec["targets"]["ClashmacOSWidgets"]
 
             self.assertEqual(extension["type"], "system-extension")
+            core_dependencies = [
+                item for item in extension["dependencies"]
+                if isinstance(item, dict) and item.get("target") == "ClashMacCore"
+            ]
+            self.assertEqual(len(core_dependencies), 1)
+            self.assertTrue(core_dependencies[0]["embed"])
+            self.assertEqual(
+                extension["settings"]["base"]["LD_RUNPATH_SEARCH_PATHS"],
+                ["$(inherited)", "@executable_path/../Frameworks"],
+            )
             self.assertIn(
                 "packet-tunnel-provider-systemextension",
                 extension["entitlements"]["properties"]["com.apple.developer.networking.networkextension"],
@@ -153,6 +169,12 @@ enum VPNStartAuthorization {
                 if isinstance(dep, dict) and dep.get("sdk") == "SystemExtensions.framework"
             ]
             self.assertEqual(len(frameworks), 1)
+            core_dependencies = [
+                dep for dep in spec["targets"]["ClashmacOSExtension"]["dependencies"]
+                if isinstance(dep, dict) and dep.get("target") == "ClashMacCore"
+            ]
+            self.assertEqual(len(core_dependencies), 1)
+            self.assertTrue(core_dependencies[0]["embed"])
 
     def test_vpn_architecture_audit_checks_real_bundle_layout_and_bundle_ids(self):
         with tempfile.TemporaryDirectory() as td:
