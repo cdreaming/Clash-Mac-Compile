@@ -1,5 +1,12 @@
 # Version Changelog
 
+## v0.1.4
+
+- 修复 Build / Release / Weekly GitHub Actions 中 `printf` 行尾双反斜杠导致 Shell 命令错误拆分的问题。
+- 状态文件改用 `printf '%s\\n'` 无续行写法，保留 workflow EXIT trap 和状态记录。
+- `check-build-config.py` 解析实际 workflow YAML，提取构建 run block 并执行 `bash -n`，检查双反斜杠续行。
+- 新增 `tests/test_workflow_shell.py`，覆盖 Build / Release / Weekly shell 语法，以及构建成功 / 失败时 EXIT trap 的状态与退出码。
+
 ## v0.1.3
 
 - 将 Build / Release / Weekly 的 macOS 构建和输出验证合并到同一个 GitHub Actions step，统一使用 GITHUB_WORKSPACE 下的绝对输出目录。

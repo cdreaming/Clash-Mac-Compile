@@ -117,18 +117,14 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p "$BUILD_OUTPUT_DIR"
-          printf 'status=started\\noutput_directory=%s\\n' "$BUILD_OUTPUT_DIR" > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-STATUS.txt"
-          printf 'workspace=%s\\nworking_directory=%s\\noutput_directory=%s\\nversion=%s\\n' \\
-            "$GITHUB_WORKSPACE" "$PWD" "$BUILD_OUTPUT_DIR" "$(tr -d '[:space:]' < VERSION)" \\
-            > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-CONTEXT.txt"
+          printf '%s\n' "status=started" "output_directory=$BUILD_OUTPUT_DIR" > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-STATUS.txt"
+          printf '%s\n' "workspace=$GITHUB_WORKSPACE" "working_directory=$PWD" "output_directory=$BUILD_OUTPUT_DIR" "version=$(tr -d '[:space:]' < VERSION)" > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-CONTEXT.txt"
           record_build_workflow_status() {
             local status_code=$?
             trap - EXIT
             local status_name=failed
             if [[ "$status_code" -eq 0 ]]; then status_name=success; fi
-            printf 'status=%s\\nexit_code=%s\\noutput_directory=%s\\n' \\
-              "$status_name" "$status_code" "$BUILD_OUTPUT_DIR" \\
-              > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-STATUS.txt"
+            printf '%s\n' "status=$status_name" "exit_code=$status_code" "output_directory=$BUILD_OUTPUT_DIR" > "$BUILD_OUTPUT_DIR/BUILD-WORKFLOW-STATUS.txt"
             exit "$status_code"
           }
           trap record_build_workflow_status EXIT

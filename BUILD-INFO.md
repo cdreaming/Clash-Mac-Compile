@@ -1,7 +1,7 @@
 # Build Information
 
 - 项目名称：Clash_Mac_Compile
-- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.3`）
+- 项目版本：以根目录 `VERSION` 为准（当前版本 `0.1.4`）
 - GitHub 仓库：`cdreaming/Clash-Mac-Compile`
 - 上游客户端：`ProjectClash/Clash-Client`
 - 上游客户端 Ref：`e3e647283b1593a61dba622f13cd499deeda9b8b`
@@ -13,19 +13,13 @@
 
 ## Build workflow
 
-Build / Release / Weekly execute build and output verification in the same Actions step, using an absolute output path under `GITHUB_WORKSPACE`.
+Build / Release / Weekly execute macOS build and output verification in one Actions step, using an absolute output path under `GITHUB_WORKSPACE`.
 
-- Build workflow output: `${GITHUB_WORKSPACE}/build/ci`
+- Build output: `${GITHUB_WORKSPACE}/build/ci`
 - Release / Weekly output: `${GITHUB_WORKSPACE}/build/release`
+- State files: `BUILD-WORKFLOW-STATUS.txt`, `BUILD-WORKFLOW-CONTEXT.txt`, `BUILD-SCRIPT-STATUS.txt`, `BUILD-RUN-CONTEXT.txt`.
 
-## Persistent status and context
-
-- `BUILD-WORKFLOW-STATUS.txt`: final workflow step status and exit code.
-- `BUILD-WORKFLOW-CONTEXT.txt`: GitHub workspace, working directory, output directory and version.
-- `BUILD-SCRIPT-STATUS.txt`: build script final status and actual exit code.
-- `BUILD-RUN-CONTEXT.txt`: project root, working directory, output directory, runner and signing mode.
-
-Both workflow and build script use EXIT traps so failure evidence remains available.
+Workflow state writes use `printf '%s\n'` without line continuations. `check-build-config.py` parses the actual YAML run blocks and executes `bash -n`; `tests/test_workflow_shell.py` simulates successful and failed build steps.
 
 ## Required outputs
 
@@ -36,8 +30,6 @@ Both workflow and build script use EXIT traps so failure evidence remains availa
 - `BUILD-OUTPUT-MANIFEST.json`
 - `BUILD-SCRIPT-STATUS.txt`
 - `BUILD-RUN-CONTEXT.txt`
-
-Before Release attachment, `verify-build-outputs.py` validates output files, version, signing mode and build script status.
 
 ## VPN architecture
 
@@ -56,7 +48,7 @@ Before Release attachment, `verify-build-outputs.py` validates output files, ver
 - `ClashmacOSExtension-BuildSettings.json`
 - `ClashClient-project.system-extension.yml`
 
-Build / Release / Weekly upload linker diagnostics and status/context with `if: always()`.
+Build / Release / Weekly upload linker diagnostics and workflow/script status/context with `if: always()`.
 
 ## Signing limitation
 

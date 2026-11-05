@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,6 +12,39 @@ ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 SHA = re.compile(r"^[0-9a-fA-F]{40}$")
 REF = re.compile(r"^[A-Za-z0-9._/-]+$")
+
+
+def extract_build_run_block(workflow_text: str, workflow_name: str) -> str:
+    lines = workflow_text.splitlines()
+    step_name = "      - name: Build and verify native macOS app"
+    starts = [index for index, line in enumerate(lines) if line == step_name]
+    if len(starts) != 1:
+        raise RuntimeError(
+            f"{workflow_name} workflow must contain exactly one build-and-verify step"
+        )
+    start = starts[0]
+    end = next(
+        (index for index in range(start + 1, len(lines))
+         if lines[index].startswith("      - name: ")),
+        len(lines),
+    )
+    step_lines = lines[start + 1:end]
+    try:
+        run_index = step_lines.index("        run: |")
+    except ValueError as exc:
+        raise RuntimeError(f"{workflow_name} build step must use a literal run block") from exc
+
+    run_lines = []
+    for line in step_lines[run_index + 1:]:
+        if not line.strip():
+            run_lines.append("")
+        elif line.startswith("          "):
+            run_lines.append(line[10:])
+        else:
+            break
+    if not run_lines:
+        raise RuntimeError(f"{workflow_name} build step has an empty run block")
+    return "\n".join(run_lines).rstrip() + "\n"
 
 
 def main() -> int:
@@ -188,6 +222,18 @@ def main() -> int:
 
     release_text = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
     weekly_text = (ROOT / ".github/workflows/upstream-weekly.yml").read_text(encoding="utf-8")
+    for workflow_name, workflow_text in (
+        ("Build", build_text), ("Release", release_text), ("Weekly", weekly_text)
+    ):
+        build_run = extract_build_run_block(workflow_text, workflow_name)
+        if "printf '%s\\n'" not in build_run:
+            raise RuntimeError(f"{workflow_name} workflow must use safe printf format strings")
+        if any(line.rstrip().endswith("\\\\") for line in build_run.splitlines()):
+            raise RuntimeError(f"{workflow_name} workflow contains malformed doubled-backslash line continuation")
+        syntax = subprocess.run(["bash", "-n"], input=build_run, text=True, capture_output=True)
+        if syntax.returncode:
+            raise RuntimeError(f"{workflow_name} build step shell syntax failed: {syntax.stderr}")
+
     for name, workflow_text in (
         ("Build", build_text), ("Release", release_text), ("Weekly", weekly_text)
     ):
