@@ -64,7 +64,8 @@
 `│   │   ├── v0.1.1.md` — v0.1.1 发布经验；System Extension 的 Frameworks 层级变化需同步调整依赖嵌入与 runpath，Xcode 失败必须保留完整日志。
 `│   │   ├── v0.1.2.md` — v0.1.2 发布经验；上传前验证文件、版本和分发模式，GitHub Artifact 使用单目录路径。
 `│   │   ├── v0.1.3.md` — v0.1.3 发布经验；多产物缺失先查 build outcome 和输出目录，build/verify 同一步并持久化退出码。
-`│   │   └── v0.1.4.md` — v0.1.4 发布经验；状态写入使用 printf '%s\\n'，对实际 YAML run block 执行 bash -n 和运行模拟。
+`│   │   ├── v0.1.4.md` — v0.1.4 发布经验；状态写入使用 printf '%s\\n'，对实际 YAML run block 执行 bash -n 和运行模拟。
+`│   │   └── v0.1.5.md` — v0.1.5 发布经验；变量名一致性、printf 实际换行、EXIT trap 原始退出码显式传递。
 `│   ├── releases/` — 各项目版本独立归档根目录；每版都有开发、验证、发布和经验文档。
 `│   │   ├── v0.0.1/` — 当前项目版本归档目录；保存开发、验证、发布和经验记录。
 `│   │   │   ├── DEVELOPMENT-JOURNAL.md` — 当前版本开发日志；保存恢复入口、检查点与开发完成状态。
@@ -150,6 +151,12 @@
 `│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.1.4 发布经验；YAML literal block 双反斜杠错误及基于 step 名的安全修改方法。
 `│   │   │   ├── RELEASE-NOTES.md` — v0.1.4 GitHub Actions Bash 双反斜杠续行错误修复说明。
 `│   │   │   └── VALIDATION-REPORT.md` — v0.1.4 验证报告；记录实际 YAML run block Bash 语法、成功/失败状态模拟和未执行的云端构建。
+`│   │   ├── v0.1.5/` — 当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。
+`│   │   │   ├── DEVELOPMENT-JOURNAL.md` — v0.1.5 开发日志；记录 project spec 变量名不一致、状态文件换行错误及回归测试。
+`│   │   │   ├── RELEASE-CHECKLIST.md` — 当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。
+`│   │   │   ├── RELEASE-EXPERIENCE-REPORT.md` — v0.1.5 发布经验；记录 set -u 未定义变量和 printf 双反斜杠状态文件错误。
+`│   │   │   ├── RELEASE-NOTES.md` — v0.1.5 修复 SYSTEM_EXTENSION_PROJECT 未定义、BUILD-SCRIPT-STATUS 字面反斜杠 n 和 EXIT trap 退出码传递。
+`│   │   │   └── VALIDATION-REPORT.md` — v0.1.5 验证报告；记录脚本变量、状态换行和 EXIT trap 测试，以及待验证的真实 Xcode build。
 `│   │   └── README.md` — 每个 vX.Y.Z 版本目录必须包含哪些开发/验证/发布文档的契约说明。
 `│   ├── templates/` — 新项目/新版本文档模板；文件名英文，正文尽量使用中文。
 `│   │   ├── ARCHITECTURE.template.md` — 项目 Architecture 文档模板；要求组件、数据、安全、生命周期和失败恢复说明。
@@ -172,7 +179,7 @@
 `│   ├── bootstrap-project.py` — 把通用模板初始化为具体项目；重置项目历史并强制真实业务测试/simulation 重新配置。
 `│   ├── build-ai-handoff.py` — AI 唯一正式收尾入口；完成开发状态、candidate gate、Release build 并导出三类交接包。
 `│   ├── build-local-signed-app.sh` — 本机自签名构建入口；先检查 Keychain identity，再调用 build-macos-app.sh 的 local 模式，不在 GitHub Actions 中运行。
-`│   ├── build-macos-app.sh` — arm64 Swift -O 构建脚本；规范化输出目录，写入 BUILD-RUN-CONTEXT / BUILD-SCRIPT-STATUS 并通过 EXIT trap 保留真实退出码；生成 APP、metadata、VPN report、checksums 和 BUILD-OUTPUT-MANIFEST。
+`│   ├── build-macos-app.sh` — arm64 Swift -O macOS 构建脚本；使用 SYSTEM_EXTENSION_PROJECT_SPEC 保存迁移后的 project.yml；状态文件逐行 printf '%s\n'；EXIT trap 显式传递原始退出码并记录成功/失败。
 `│   ├── build-release.py` — 生成确定性源码 ZIP、Release manifest 和 SHA-256；拒绝 P12 / PFX / 私钥 / Provisioning Profile 等敏感文件。
 `│   ├── build-source-manifest.py` — 生成/校验源码 SHA-256 清单；拒绝 symlink 和 Secret 进入受管源码集合。
 `│   ├── check-build-config.py` — 无 PyYAML 运行时依赖；按精确 workflow step 名提取 Build / Release / Weekly 实际 shell block，执行 bash -n，拒绝双反斜杠续行，并检查 immutable upstream / System Extension / artifact contracts。
@@ -195,6 +202,7 @@
 `│   └── verify-local-signed-app.sh` — 使用 codesign 验证主 APP 与嵌套 App Extension 的本地签名，并生成不宣称 Apple entitlement 授权的 JSON 报告。
 `├── tests/` — 项目配置、构建脚本契约和 Release 资产校验测试。
 `│   ├── test_build_outputs.py` — 构建输出验证测试；覆盖完整输出、缺少 APP ZIP、build script 非零退出码和签名模式不匹配。
+`│   ├── test_build_script_status.py` — 构建脚本状态回归测试；验证 System Extension project spec 变量声明/引用一致、状态文件真实换行、EXIT trap 保留 exit code 65 和 Bash 语法。
 `│   ├── test_governance.py` — 治理回归测试；覆盖旧日志缺少完成摘要/会话标记、重发布预检失败时不修改发布状态等场景。
 `│   ├── test_linker_diagnostics.py` — Xcode Linker 诊断解析器回归测试；验证 undefined symbols、linker command failed 和无标准错误日志的处理。
 `│   ├── test_packaging.py` — 源码包 ZIP、SHA-256、确定性打包和敏感密钥扩展名拒绝测试。
@@ -205,7 +213,7 @@
 `├── .gitattributes` — 固定 Git 文本文件 LF 行尾，避免 Windows/Linux/Sourcetree 交接时脚本换行损坏。
 `├── .gitignore` — 排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。
 `├── AGENTS.md` — 仓库级 AI 规则与 Clash_Mac_Compile 专属上游、签名和验证约束。
-`├── BUILD-INFO.md` — v0.1.4 构建信息；记录 workflow 状态 printf 修复和 YAML shell block 语法验证。
+`├── BUILD-INFO.md` — v0.1.5 构建信息；记录 System Extension project spec 变量和 build script status 语义。
 `├── CHANGELOG.md` — 项目各版本变更记录；v0.0.7 记录旧版开发日志兼容、重发布预检和治理回归测试。
 `├── README.md` — v0.1.1 项目说明；包含 System Extension 构建、Xcode Linker 日志和失败 Artifact 下载指引。
 `├── RELEASE_REVISION` — 同一项目 VERSION 的发布修订号；0 为原始发布，1/2… 对应 r1/r2 受控重发审计序号。

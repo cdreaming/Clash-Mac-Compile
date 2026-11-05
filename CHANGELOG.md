@@ -1,5 +1,12 @@
 # Version Changelog
 
+## v0.1.5
+
+- 修复 `build-macos-app.sh` 中声明 `SYSTEM_EXTENSION_PROJECT_SPEC` 却引用 `SYSTEM_EXTENSION_PROJECT` 的变量名错误，避免 `set -u` 在 Xcode 启动前退出。
+- 构建状态初始值和 EXIT trap 结果统一使用 `printf '%s\\n'`，确保 status、exit_code、version 和 output_directory 各自独占一行。
+- EXIT trap 改为 `trap 'cleanup_build "$?"' EXIT`，将原始退出码显式传给清理函数。
+- 新增 `tests/test_build_script_status.py`，覆盖 project spec 变量一致性、状态文件换行、失败退出码保留和 Bash 语法。
+
 ## v0.1.4
 
 - 修复 Build / Release / Weekly GitHub Actions 中 `printf` 行尾双反斜杠导致 Shell 命令错误拆分的问题。

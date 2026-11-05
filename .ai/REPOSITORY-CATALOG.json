@@ -31,7 +31,8 @@
     "docs/releases/v0.1.1/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。",
     "docs/releases/v0.1.2/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。",
     "docs/releases/v0.1.3/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。",
-    "docs/releases/v0.1.4/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。"
+    "docs/releases/v0.1.4/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。",
+    "docs/releases/v0.1.5/": "当前项目版本归档目录；保存开发、验证、发布、经验与可选深度升级记录。"
   },
   "files": {
     ".ai/AI-START-HERE.md": "AI 每轮开工、上游版本锁定、验证和收尾入口。",
@@ -46,7 +47,7 @@
     ".github/workflows/release.yml": "Tag Release workflow；保留 release state resolution，构建状态写入使用安全 printf 格式，构建失败时 always-upload diagnostics。",
     ".gitignore": "排除本地状态、构建产物、缓存、虚拟环境、Secret、运行时数据和 IDE 文件。",
     "AGENTS.md": "仓库级 AI 规则与 Clash_Mac_Compile 专属上游、签名和验证约束。",
-    "BUILD-INFO.md": "v0.1.4 构建信息；记录 workflow 状态 printf 修复和 YAML shell block 语法验证。",
+    "BUILD-INFO.md": "v0.1.5 构建信息；记录 System Extension project spec 变量和 build script status 语义。",
     "CHANGELOG.md": "项目各版本变更记录；v0.0.7 记录旧版开发日志兼容、重发布预检和治理回归测试。",
     "README.md": "v0.1.1 项目说明；包含 System Extension 构建、Xcode Linker 日志和失败 Artifact 下载指引。",
     "SECURITY.md": "Secret、Apple 签名材料、上游锁定与 GitHub Actions 安全策略。",
@@ -117,7 +118,7 @@
     "docs/development/UPSTREAM-BUILD.md": "ProjectClash 三仓职责、官方 bootstrap/configure、Go 工具链和 arm64 构建说明。",
     "docs/github/GITHUB-ACTIONS-SETUP.md": "Sourcetree 上传、无签名 GitHub Actions 构建、每周上游自动发布、权限和 Releases 下载操作。",
     "scripts/attach-release-assets.py": "Release 资产附加脚本；校验 APP ZIP、metadata、VPN 架构报告、BUILD-OUTPUT-MANIFEST 和 BUILD-SCRIPT-STATUS 成功状态。",
-    "scripts/build-macos-app.sh": "arm64 Swift -O 构建脚本；规范化输出目录，写入 BUILD-RUN-CONTEXT / BUILD-SCRIPT-STATUS 并通过 EXIT trap 保留真实退出码；生成 APP、metadata、VPN report、checksums 和 BUILD-OUTPUT-MANIFEST。",
+    "scripts/build-macos-app.sh": "arm64 Swift -O macOS 构建脚本；使用 SYSTEM_EXTENSION_PROJECT_SPEC 保存迁移后的 project.yml；状态文件逐行 printf '%s\\n'；EXIT trap 显式传递原始退出码并记录成功/失败。",
     "scripts/check-build-config.py": "无 PyYAML 运行时依赖；按精确 workflow step 名提取 Build / Release / Weekly 实际 shell block，执行 bash -n，拒绝双反斜杠续行，并检查 immutable upstream / System Extension / artifact contracts。",
     "tests/test_project.py": "v0.0.9 项目回归测试；包含本地签名隔离、metadata writer 严格 JSON、Release JSON 错误定位、每周版本递增和私钥防泄漏。",
     "docs/releases/v0.0.2/DEVELOPMENT-JOURNAL.md": "v0.0.2 开发日志；记录修复可移动上游引用、Go 工具链同步和本地验证结果。",
@@ -214,7 +215,14 @@
     "docs/releases/v0.1.4/VALIDATION-REPORT.md": "v0.1.4 验证报告；记录实际 YAML run block Bash 语法、成功/失败状态模拟和未执行的云端构建。",
     "docs/releases/v0.1.4/RELEASE-EXPERIENCE-REPORT.md": "v0.1.4 发布经验；YAML literal block 双反斜杠错误及基于 step 名的安全修改方法。",
     "docs/release-lessons/v0.1.4.md": "v0.1.4 发布经验；状态写入使用 printf '%s\\\\n'，对实际 YAML run block 执行 bash -n 和运行模拟。",
-    "tests/test_workflow_shell.py": "无 PyYAML 依赖的 GitHub Actions shell 回归测试；提取 Build / Release / Weekly YAML run block，执行 bash -n；模拟成功与 exit code 65 失败，验证 EXIT trap 状态码。"
+    "tests/test_workflow_shell.py": "无 PyYAML 依赖的 GitHub Actions shell 回归测试；提取 Build / Release / Weekly YAML run block，执行 bash -n；模拟成功与 exit code 65 失败，验证 EXIT trap 状态码。",
+    "docs/releases/v0.1.5/DEVELOPMENT-JOURNAL.md": "v0.1.5 开发日志；记录 project spec 变量名不一致、状态文件换行错误及回归测试。",
+    "docs/releases/v0.1.5/RELEASE-CHECKLIST.md": "当前版本发布检查表；保存风险、ready/archive 状态和真实发布证据。",
+    "docs/releases/v0.1.5/RELEASE-NOTES.md": "v0.1.5 修复 SYSTEM_EXTENSION_PROJECT 未定义、BUILD-SCRIPT-STATUS 字面反斜杠 n 和 EXIT trap 退出码传递。",
+    "docs/releases/v0.1.5/VALIDATION-REPORT.md": "v0.1.5 验证报告；记录脚本变量、状态换行和 EXIT trap 测试，以及待验证的真实 Xcode build。",
+    "docs/releases/v0.1.5/RELEASE-EXPERIENCE-REPORT.md": "v0.1.5 发布经验；记录 set -u 未定义变量和 printf 双反斜杠状态文件错误。",
+    "docs/release-lessons/v0.1.5.md": "v0.1.5 发布经验；变量名一致性、printf 实际换行、EXIT trap 原始退出码显式传递。",
+    "tests/test_build_script_status.py": "构建脚本状态回归测试；验证 System Extension project spec 变量声明/引用一致、状态文件真实换行、EXIT trap 保留 exit code 65 和 Bash 语法。"
   },
   "folder_patterns": [],
   "file_patterns": [

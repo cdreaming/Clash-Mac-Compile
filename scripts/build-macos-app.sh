@@ -80,29 +80,23 @@ runner_arch=$(uname -m)
 github_run_id=${GITHUB_RUN_ID:-local}
 github_run_number=${GITHUB_RUN_NUMBER:-local}
 EOF
-printf 'status=running\\nversion=%s\\noutput_directory=%s\\n' "$VERSION" "$OUTPUT_DIR" > "$BUILD_SCRIPT_STATUS"
+printf '%s\n' "status=running" "version=$VERSION" "output_directory=$OUTPUT_DIR" > "$BUILD_SCRIPT_STATUS"
 
 WORK_DIR=""
 cleanup_build() {
-  local build_exit_code=$?
+  local build_exit_code="${1:-0}"
+  local build_status="failed"
   trap - EXIT
   if [[ "$build_exit_code" -eq 0 ]]; then
     build_status="success"
-  else
-    build_status="failed"
   fi
-  {
-    printf 'status=%s\\n' "$build_status"
-    printf 'exit_code=%s\\n' "$build_exit_code"
-    printf 'version=%s\\n' "$VERSION"
-    printf 'output_directory=%s\\n' "$OUTPUT_DIR"
-  } > "$BUILD_SCRIPT_STATUS"
+  printf '%s\n' "status=$build_status" "exit_code=$build_exit_code" "version=$VERSION" "output_directory=$OUTPUT_DIR" > "$BUILD_SCRIPT_STATUS"
   if [[ -n "$WORK_DIR" && -d "$WORK_DIR" ]]; then
     rm -rf "$WORK_DIR" || true
   fi
   exit "$build_exit_code"
 }
-trap cleanup_build EXIT
+trap 'cleanup_build "$?"' EXIT
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/clash-mac-compile.XXXXXX")"
 CLIENT_DIR="$WORK_DIR/Clash-Client"
@@ -205,7 +199,8 @@ fi
 XCODEBUILD_LOG="$OUTPUT_DIR/XCODEBUILD.log"
 LINKER_DIAGNOSTICS="$OUTPUT_DIR/LINKER-DIAGNOSTICS.txt"
 SYSTEM_EXTENSION_PROJECT_SPEC="$OUTPUT_DIR/ClashClient-project.system-extension.yml"
-cp "$CLIENT_DIR/apple/ClashClient/project.yml" "$SYSTEM_EXTENSION_PROJECT"
+: "${SYSTEM_EXTENSION_PROJECT_SPEC:?System Extension project spec output path is not set}"
+cp "$CLIENT_DIR/apple/ClashClient/project.yml" "$SYSTEM_EXTENSION_PROJECT_SPEC"
 
 echo "==> Build with verbose linker diagnostics"
 set +e
